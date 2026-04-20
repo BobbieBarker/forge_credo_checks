@@ -4,24 +4,23 @@ defmodule ForgeCredoChecks.RejectMap do
     category: :refactor,
     explanations: [
       check: """
-      `Enum.flat_map/2` is more efficient than `Enum.reject/2 |> Enum.map/2`.
+      `Enum.reduce/3` is more efficient than `Enum.reject/2 |> Enum.map/2`.
 
-      The two-pass version walks the list twice and builds an intermediate
-      list of surviving elements before mapping. Fusing into `flat_map`
-      visits each element once and yields `[mapped]` when the predicate
-      is false, `[]` when true.
-
-      This should be refactored:
+      The two-pass version walks the list twice and allocates an
+      intermediate list of surviving elements before mapping. A single
+      `Enum.reduce/3` visits each element once with no intermediate list:
 
           things
           |> Enum.reject(&drop?/1)
           |> Enum.map(&transform/1)
 
-      to look like this:
+      becomes:
 
-          Enum.flat_map(things, fn x ->
-            if drop?(x), do: [], else: [transform(x)]
+          Enum.reduce(things, [], fn x, acc ->
+            if drop?(x), do: acc, else: [transform(x) | acc]
           end)
+
+      Add `|> Enum.reverse()` only if the output order matters.
       """
     ]
 
@@ -34,7 +33,7 @@ defmodule ForgeCredoChecks.RejectMap do
     report = fn line_no, _pred ->
       format_issue(issue_meta,
         message:
-          "`Enum.flat_map/2` is more efficient than `Enum.reject/2 |> Enum.map/2`.",
+          "`Enum.reduce/3` is more efficient than `Enum.reject/2 |> Enum.map/2`.",
         trigger: "|>",
         line_no: line_no
       )

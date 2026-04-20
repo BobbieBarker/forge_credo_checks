@@ -4,25 +4,23 @@ defmodule ForgeCredoChecks.MapRejectNil do
     category: :refactor,
     explanations: [
       check: """
-      `Enum.flat_map/2` is the canonical replacement for the common
-      "map then drop nils" pattern produced by LLMs:
+      `Enum.reduce/3` fuses the common "map then drop nils" pattern
+      LLMs produce into a single pass:
 
           things
           |> Enum.map(&parse/1)
           |> Enum.reject(&is_nil/1)
 
-      Use `flat_map` to fuse parse + filter into one pass:
+      becomes:
 
-          Enum.flat_map(things, fn x ->
+          Enum.reduce(things, [], fn x, acc ->
             case parse(x) do
-              nil -> []
-              parsed -> [parsed]
+              nil -> acc
+              v -> [v | acc]
             end
           end)
 
-      Or, when `parse` already returns a list/option:
-
-          Enum.flat_map(things, &List.wrap(parse(&1)))
+      Add `|> Enum.reverse()` only if the output order matters.
       """
     ]
 
@@ -36,7 +34,7 @@ defmodule ForgeCredoChecks.MapRejectNil do
       if EnumChainWalker.is_nil_predicate?(pred) do
         format_issue(issue_meta,
           message:
-            "`Enum.flat_map/2` replaces `Enum.map/2 |> Enum.reject(&is_nil/1)` in one pass.",
+            "`Enum.reduce/3` replaces `Enum.map/2 |> Enum.reject(&is_nil/1)` in one pass.",
           trigger: "|>",
           line_no: line_no
         )

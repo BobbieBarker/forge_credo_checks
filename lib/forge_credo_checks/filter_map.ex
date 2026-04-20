@@ -4,28 +4,25 @@ defmodule ForgeCredoChecks.FilterMap do
     category: :refactor,
     explanations: [
       check: """
-      `Enum.flat_map/2` is more efficient than `Enum.filter/2 |> Enum.map/2`.
+      `Enum.reduce/3` is more efficient than `Enum.filter/2 |> Enum.map/2`.
 
-      The two-pass version walks the list twice and builds an intermediate
-      list of matching elements before mapping. Fusing into `flat_map`
-      visits each element once and yields `[mapped]` for matches, `[]`
-      otherwise.
-
-      This should be refactored:
+      The two-pass version walks the list twice and allocates an
+      intermediate list of matching elements before mapping. A single
+      `Enum.reduce/3` visits each element once with no intermediate list:
 
           things
           |> Enum.filter(&keep?/1)
           |> Enum.map(&transform/1)
 
-      to look like this:
+      becomes:
 
-          Enum.flat_map(things, fn x ->
-            if keep?(x), do: [transform(x)], else: []
+          Enum.reduce(things, [], fn x, acc ->
+            if keep?(x), do: [transform(x) | acc], else: acc
           end)
 
-      Or, when both predicates and transforms are simple, use a comprehension:
-
-          for x <- things, keep?(x), do: transform(x)
+      Add `|> Enum.reverse()` only if the output order matters; for
+      most callers (set membership, `Map.new`, sort, sum, etc.) it
+      does not.
       """
     ]
 
@@ -38,7 +35,7 @@ defmodule ForgeCredoChecks.FilterMap do
     report = fn line_no, _pred ->
       format_issue(issue_meta,
         message:
-          "`Enum.flat_map/2` is more efficient than `Enum.filter/2 |> Enum.map/2`.",
+          "`Enum.reduce/3` is more efficient than `Enum.filter/2 |> Enum.map/2`.",
         trigger: "|>",
         line_no: line_no
       )

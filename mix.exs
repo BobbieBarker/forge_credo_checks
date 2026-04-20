@@ -39,6 +39,7 @@ defmodule ForgeCredoChecks.MixProject do
     [
       maintainers: ["Chad King"],
       licenses: ["MIT"],
+      files: ~w(lib mix.exs README.md LICENSE),
       links: %{"GitHub" => @source_url}
     ]
   end

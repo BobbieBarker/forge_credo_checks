@@ -1,21 +1,75 @@
 # ForgeCredoChecks
 
-**TODO: Add description**
+Custom [Credo](https://github.com/rrrene/credo) checks targeting `Enum`
+anti-patterns LLMs commonly produce in Elixir code.
+
+Stock Credo ships rules for `filter |> filter`, `reject |> reject`,
+`map |> join`, etc. (same operation chained, or map terminating in a
+collector). It does **not** catch chains where one operation composes
+with the *complementary* one. These checks fill that gap.
+
+## Rules
+
+| Rule | Pattern flagged |
+|---|---|
+| `ForgeCredoChecks.FilterMap` | `Enum.filter \|> Enum.map` |
+| `ForgeCredoChecks.RejectMap` | `Enum.reject \|> Enum.map` |
+| `ForgeCredoChecks.MapReject` | `Enum.map \|> Enum.reject` |
+| `ForgeCredoChecks.MapRejectNil` | `Enum.map \|> Enum.reject(&is_nil/1)` |
+
+Each suggests `Enum.reduce/3` as the single-pass replacement. The
+two-pass `filter |> map` style walks the input twice and allocates
+an intermediate list; the reduce form does neither.
+
+```elixir
+# Flagged by FilterMap
+things
+|> Enum.filter(&keep?/1)
+|> Enum.map(&transform/1)
+
+# Suggested replacement
+Enum.reduce(things, [], fn x, acc ->
+  if keep?(x), do: [transform(x) | acc], else: acc
+end)
+```
+
+Append `|> Enum.reverse()` only if the output order matters. For
+most callers (set membership, `Map.new`, sort, sum, count, etc.) it
+does not.
+
+All four rules detect the four AST shapes Elixir parses for any
+two-call chain: direct nested call, two-step pipe, partial pipe +
+call, and longer pipe chains.
 
 ## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `forge_credo_checks` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:forge_credo_checks, "~> 0.1.0"}
+    {:forge_credo_checks, "~> 0.1", only: [:dev, :test], runtime: false}
   ]
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/forge_credo_checks>.
+Then add to `.credo.exs`:
 
+```elixir
+%{
+  configs: [
+    %{
+      name: "default",
+      checks: [
+        # ...
+        {ForgeCredoChecks.FilterMap, []},
+        {ForgeCredoChecks.RejectMap, []},
+        {ForgeCredoChecks.MapReject, []},
+        {ForgeCredoChecks.MapRejectNil, []}
+      ]
+    }
+  ]
+}
+```
+
+## License
+
+MIT
