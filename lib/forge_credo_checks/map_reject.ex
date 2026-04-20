@@ -1,0 +1,47 @@
+defmodule ForgeCredoChecks.MapReject do
+  use Credo.Check,
+    base_priority: :high,
+    category: :refactor,
+    explanations: [
+      check: """
+      `Enum.flat_map/2` is more efficient than `Enum.map/2 |> Enum.reject/2`.
+
+      Two iterations and an intermediate list become one pass:
+
+          things
+          |> Enum.map(&transform/1)
+          |> Enum.reject(&drop?/1)
+
+      becomes:
+
+          Enum.flat_map(things, fn x ->
+            transformed = transform(x)
+            if drop?(transformed), do: [], else: [transformed]
+          end)
+
+      For the common `map |> reject(&is_nil/1)` case, see also
+      `ForgeCredoChecks.MapRejectNil` which targets that specific shape.
+      """
+    ]
+
+  alias ForgeCredoChecks.EnumChainWalker
+
+  @doc false
+  def run(source_file, params \\ []) do
+    issue_meta = IssueMeta.for(source_file, params)
+
+    report = fn line_no, _pred ->
+      format_issue(issue_meta,
+        message:
+          "`Enum.flat_map/2` is more efficient than `Enum.map/2 |> Enum.reject/2`.",
+        trigger: "|>",
+        line_no: line_no
+      )
+    end
+
+    Credo.Code.prewalk(
+      source_file,
+      &EnumChainWalker.traverse(&1, &2, :map, :reject, report)
+    )
+  end
+end
