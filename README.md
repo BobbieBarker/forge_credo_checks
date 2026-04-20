@@ -10,6 +10,8 @@ with the *complementary* one. These checks fill that gap.
 
 ## Rules
 
+### Two-pass Enum chains → `Enum.reduce/3`
+
 | Rule | Pattern flagged |
 |---|---|
 | `ForgeCredoChecks.FilterMap` | `Enum.filter \|> Enum.map` |
@@ -17,9 +19,24 @@ with the *complementary* one. These checks fill that gap.
 | `ForgeCredoChecks.MapReject` | `Enum.map \|> Enum.reject` |
 | `ForgeCredoChecks.MapRejectNil` | `Enum.map \|> Enum.reject(&is_nil/1)` |
 
-Each suggests `Enum.reduce/3` as the single-pass replacement. The
-two-pass `filter |> map` style walks the input twice and allocates
-an intermediate list; the reduce form does neither.
+### Hand-rolled map building → `Map.new/2`
+
+| Rule | Pattern flagged |
+|---|---|
+| `ForgeCredoChecks.MapNewFromInto` | `Enum.into(%{}, fn ...)` |
+| `ForgeCredoChecks.MapNewFromReduce` | `Enum.reduce(_, %{}, &Map.put(acc, k, v))` |
+
+### Wasteful list-extremum patterns
+
+| Rule | Pattern flagged | Replacement |
+|---|---|---|
+| `ForgeCredoChecks.ReverseListFirst` | `xs \|> Enum.reverse() \|> List.first()` | `List.last(xs)` |
+| `ForgeCredoChecks.SortListFirst` | `Enum.sort \\| List.first` | `Enum.min`/`Enum.max`/`*_by` |
+
+The two-pass chains walk the input twice and allocate intermediate lists;
+`Enum.reduce/3` does neither. The map-building forms are pure equivalences
+with cleaner intent. The sort-then-pick patterns are O(N log N) when
+O(N) suffices.
 
 ```elixir
 # Flagged by FilterMap
@@ -66,7 +83,11 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.FilterMap, []},
         {ForgeCredoChecks.RejectMap, []},
         {ForgeCredoChecks.MapReject, []},
-        {ForgeCredoChecks.MapRejectNil, []}
+        {ForgeCredoChecks.MapRejectNil, []},
+        {ForgeCredoChecks.MapNewFromInto, []},
+        {ForgeCredoChecks.MapNewFromReduce, []},
+        {ForgeCredoChecks.ReverseListFirst, []},
+        {ForgeCredoChecks.SortListFirst, []}
       ]
     }
   ]
