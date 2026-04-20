@@ -49,7 +49,7 @@ Not yet published to hex. Install via git for now:
 def deps do
   [
     {:forge_credo_checks,
-     github: "bobbiebarker/forge_credo_checks", only: [:dev, :test], runtime: false}
+     github: "BobbieBarker/forge_credo_checks", only: [:dev, :test], runtime: false}
   ]
 end
 ```
