@@ -32,8 +32,7 @@ defmodule ForgeCredoChecks.RejectMap do
 
     report = fn line_no, _pred ->
       format_issue(issue_meta,
-        message:
-          "`Enum.reduce/3` is more efficient than `Enum.reject/2 |> Enum.map/2`.",
+        message: "`Enum.reduce/3` is more efficient than `Enum.reject/2 |> Enum.map/2`.",
         trigger: "|>",
         line_no: line_no
       )

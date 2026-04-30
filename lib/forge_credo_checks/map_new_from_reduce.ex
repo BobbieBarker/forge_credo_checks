@@ -31,8 +31,8 @@ defmodule ForgeCredoChecks.MapNewFromReduce do
 
   # Direct call: Enum.reduce(enum, %{}, fn x, acc -> Map.put(acc, k, v) end)
   defp traverse(
-         {{:., _, [{:__aliases__, meta, [:Enum]}, :reduce]}, _,
-          [_enum, {:%{}, _, []}, fun]} = ast,
+         {{:., _, [{:__aliases__, meta, [:Enum]}, :reduce]}, _, [_enum, {:%{}, _, []}, fun]} =
+           ast,
          issues,
          issue_meta
        ) do
@@ -44,8 +44,7 @@ defmodule ForgeCredoChecks.MapNewFromReduce do
          {:|>, _,
           [
             _,
-            {{:., _, [{:__aliases__, meta, [:Enum]}, :reduce]}, _,
-             [{:%{}, _, []}, fun]}
+            {{:., _, [{:__aliases__, meta, [:Enum]}, :reduce]}, _, [{:%{}, _, []}, fun]}
           ]} = ast,
          issues,
          issue_meta
