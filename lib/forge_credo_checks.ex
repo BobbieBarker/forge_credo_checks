@@ -9,19 +9,19 @@ defmodule ForgeCredoChecks do
 
   ## Two-pass Enum chains (suggests `Enum.reduce/3`)
 
-    * `ForgeCredoChecks.FilterMap` — `Enum.filter |> Enum.map`
-    * `ForgeCredoChecks.RejectMap` — `Enum.reject |> Enum.map`
-    * `ForgeCredoChecks.MapReject` — `Enum.map |> Enum.reject`
-    * `ForgeCredoChecks.MapRejectNil` — `Enum.map |> Enum.reject(&is_nil/1)`
+    * `ForgeCredoChecks.FilterMap`: `Enum.filter |> Enum.map`
+    * `ForgeCredoChecks.RejectMap`: `Enum.reject |> Enum.map`
+    * `ForgeCredoChecks.MapReject`: `Enum.map |> Enum.reject`
+    * `ForgeCredoChecks.MapRejectNil`: `Enum.map |> Enum.reject(&is_nil/1)`
 
   ## Hand-rolled map building (suggests `Map.new/2`)
 
-    * `ForgeCredoChecks.MapNewFromInto` — `Enum.into(%{}, fn ...)`
-    * `ForgeCredoChecks.MapNewFromReduce` — `Enum.reduce(_, %{}, &Map.put(acc, k, v))`
+    * `ForgeCredoChecks.MapNewFromInto`: `Enum.into(%{}, fn ...)`
+    * `ForgeCredoChecks.MapNewFromReduce`: `Enum.reduce(_, %{}, &Map.put(acc, k, v))`
 
   ## Wasteful list-extremum patterns
 
-    * `ForgeCredoChecks.ReverseListFirst` — `xs |> Enum.reverse() |> List.first()` → `List.last(xs)`
-    * `ForgeCredoChecks.SortListFirst` — `Enum.sort \\| List.first` → `Enum.min`/`Enum.max`/`*_by`
+    * `ForgeCredoChecks.ReverseListFirst`: `xs |> Enum.reverse() |> List.first()` becomes `List.last(xs)`
+    * `ForgeCredoChecks.SortListFirst`: `Enum.sort \\| List.first` becomes `Enum.min`/`Enum.max`/`*_by`
   """
 end

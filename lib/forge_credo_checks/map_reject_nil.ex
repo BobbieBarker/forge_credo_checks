@@ -31,10 +31,9 @@ defmodule ForgeCredoChecks.MapRejectNil do
     issue_meta = IssueMeta.for(source_file, params)
 
     report = fn line_no, pred ->
-      if EnumChainWalker.is_nil_predicate?(pred) do
+      if EnumChainWalker.nil_predicate?(pred) do
         format_issue(issue_meta,
-          message:
-            "`Enum.reduce/3` replaces `Enum.map/2 |> Enum.reject(&is_nil/1)` in one pass.",
+          message: "`Enum.reduce/3` replaces `Enum.map/2 |> Enum.reject(&is_nil/1)` in one pass.",
           trigger: "|>",
           line_no: line_no
         )

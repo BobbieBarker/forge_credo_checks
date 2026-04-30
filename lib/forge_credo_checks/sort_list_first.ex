@@ -49,7 +49,7 @@ defmodule ForgeCredoChecks.SortListFirst do
     {ast, issues ++ List.wrap(issue_for(issue_meta, meta[:line], sort_fun, term))}
   end
 
-  # List.first(Enum.sort(...)) — also handles List.first(Enum.sort_by(...))
+  # List.first(Enum.sort(...)); also handles List.first(Enum.sort_by(...))
   defp traverse(
          {{:., meta, [{:__aliases__, _, [:List]}, term]}, _,
           [

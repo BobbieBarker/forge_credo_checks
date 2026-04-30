@@ -1,7 +1,7 @@
 # ForgeCredoChecks
 
 Custom [Credo](https://github.com/rrrene/credo) checks targeting `Enum`
-anti-patterns LLMs commonly produce in Elixir code.
+anti-patterns LLMs (and some humans) commonly produce in Elixir code.
 
 Stock Credo ships rules for `filter |> filter`, `reject |> reject`,
 `map |> join`, etc. (same operation chained, or map terminating in a
@@ -10,7 +10,7 @@ with the *complementary* one. These checks fill that gap.
 
 ## Rules
 
-### Two-pass Enum chains → `Enum.reduce/3`
+### Two-pass Enum chains: use `Enum.reduce/3`
 
 | Rule | Pattern flagged |
 |---|---|
@@ -19,7 +19,7 @@ with the *complementary* one. These checks fill that gap.
 | `ForgeCredoChecks.MapReject` | `Enum.map \|> Enum.reject` |
 | `ForgeCredoChecks.MapRejectNil` | `Enum.map \|> Enum.reject(&is_nil/1)` |
 
-### Hand-rolled map building → `Map.new/2`
+### Hand-rolled map building: use `Map.new/2`
 
 | Rule | Pattern flagged |
 |---|---|
@@ -60,13 +60,12 @@ call, and longer pipe chains.
 
 ## Installation
 
-Not yet published to hex. Install via git for now:
+Add to `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:forge_credo_checks,
-     github: "BobbieBarker/forge_credo_checks", only: [:dev, :test], runtime: false}
+    {:forge_credo_checks, "~> 0.2", only: [:dev, :test], runtime: false}
   ]
 end
 ```

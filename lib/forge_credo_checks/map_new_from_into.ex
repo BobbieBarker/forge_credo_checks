@@ -30,8 +30,7 @@ defmodule ForgeCredoChecks.MapNewFromInto do
 
   # Direct call form: Enum.into(enum, %{}, fn ...)
   defp traverse(
-         {{:., _, [{:__aliases__, meta, [:Enum]}, :into]}, _,
-          [_enum, {:%{}, _, []}, _fun]} = ast,
+         {{:., _, [{:__aliases__, meta, [:Enum]}, :into]}, _, [_enum, {:%{}, _, []}, _fun]} = ast,
          issues,
          issue_meta
        ) do
@@ -43,8 +42,7 @@ defmodule ForgeCredoChecks.MapNewFromInto do
          {:|>, _,
           [
             _,
-            {{:., _, [{:__aliases__, meta, [:Enum]}, :into]}, _,
-             [{:%{}, _, []}, _fun]}
+            {{:., _, [{:__aliases__, meta, [:Enum]}, :into]}, _, [{:%{}, _, []}, _fun]}
           ]} = ast,
          issues,
          issue_meta
