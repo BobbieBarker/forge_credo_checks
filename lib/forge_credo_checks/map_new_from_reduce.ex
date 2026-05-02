@@ -4,22 +4,38 @@ defmodule ForgeCredoChecks.MapNewFromReduce do
     category: :refactor,
     explanations: [
       check: """
-      `Map.new/2` replaces a hand-rolled `Enum.reduce(_, %{}, fn _, acc ->
-      Map.put(acc, k, v) end)` with the idiomatic key-value tuple form.
+      Replace `Enum.reduce(_, %{}, fn _, acc -> Map.put(acc, k, v) end)`
+      with `Map.new/2` and a key-value tuple.
 
-      This:
+      ## Why
 
+      The reduce form obscures intent: it spells out an accumulator pattern
+      when "build a map" is the actual operation. `Map.new/2` says it
+      directly.
+
+      ## How to fix
+
+          # BEFORE
           Enum.reduce(things, %{}, fn x, acc ->
             Map.put(acc, x.id, transform(x))
           end)
 
-      becomes:
-
+          # AFTER
           Map.new(things, fn x -> {x.id, transform(x)} end)
 
-      The reduce form obscures intent (build a map keyed by something) and
-      is a common LLM trap when rewriting Python dict-comprehension code
-      into Elixir.
+      The fn drops the `acc` argument and returns a `{key, value}` tuple
+      instead of calling `Map.put`.
+
+      ## What NOT to do
+
+      Do not "fix" this by leaving the reduce shape and renaming `Map.put`
+      to something else. The whole reduce expression is the smell - replace
+      it with `Map.new/2`.
+
+      This check only fires when the fn body is exactly
+      `Map.put(acc, _, _)` - more complex reduce bodies (conditional
+      inserts, multi-key updates, etc.) are left alone because they may
+      not have a `Map.new/2` equivalent.
       """
     ]
 
@@ -78,7 +94,10 @@ defmodule ForgeCredoChecks.MapNewFromReduce do
 
   defp issue_for(issue_meta, line_no) do
     format_issue(issue_meta,
-      message: "`Map.new/2` replaces `Enum.reduce(_, %{}, &Map.put(acc, k, v))`.",
+      message:
+        "Replace `Enum.reduce(_, %{}, fn x, acc -> Map.put(acc, k, v) end)` with " <>
+          "`Map.new(_, fn x -> {k, v} end)`. The fn drops the `acc` argument and returns " <>
+          "a `{key, value}` tuple instead of calling `Map.put`.",
       trigger: "Enum.reduce",
       line_no: line_no
     )

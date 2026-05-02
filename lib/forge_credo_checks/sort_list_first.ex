@@ -4,13 +4,22 @@ defmodule ForgeCredoChecks.SortListFirst do
     category: :refactor,
     explanations: [
       check: """
-      Sorting a whole list to take the first or last element is O(N log N)
-      when O(N) suffices via `Enum.min`, `Enum.max`, `Enum.min_by`, or
-      `Enum.max_by`.
+      Replace `Enum.sort(...) |> List.first()` (or `List.last/1`) with the
+      direct extremum function. A full sort is O(N log N); `Enum.min/max/
+      min_by/max_by` is O(N).
 
-      Replacements:
+      ## Why
 
-      | This | Becomes |
+      Sorting a whole list to take a single endpoint is wasted work. The
+      extremum functions visit each element once and never allocate a
+      sorted copy.
+
+      ## How to fix
+
+      Pick the replacement from this table based on the original sort and
+      terminal call:
+
+      | Before | After |
       |---|---|
       | `Enum.sort(xs) \\| List.first()` | `Enum.min(xs)` |
       | `Enum.sort(xs) \\| List.last()` | `Enum.max(xs)` |
@@ -18,7 +27,11 @@ defmodule ForgeCredoChecks.SortListFirst do
       | `Enum.sort_by(xs, f) \\| List.first()` | `Enum.min_by(xs, f)` |
       | `Enum.sort_by(xs, f, :desc) \\| List.first()` | `Enum.max_by(xs, f)` |
 
-      A full sort is wasted work when only the extremum is needed.
+      ## What NOT to do
+
+      Do not "fix" by switching `List.first` to `hd/1` or `Enum.at(_, 0)` -
+      that keeps the unnecessary sort. The sort itself is the cost; replace
+      the whole expression with the extremum function.
       """
     ]
 
@@ -68,8 +81,9 @@ defmodule ForgeCredoChecks.SortListFirst do
   defp issue_for(issue_meta, line_no, sort_fun, term) do
     format_issue(issue_meta,
       message:
-        "`Enum.#{replacement(sort_fun, term)}` replaces `Enum.#{sort_fun} |> List.#{term}` " <>
-          "(O(N) instead of O(N log N)).",
+        "Replace `Enum.#{sort_fun}(...) |> List.#{term}()` with " <>
+          "`Enum.#{replacement(sort_fun, term)}(...)` (O(N) instead of O(N log N)). " <>
+          "Do NOT swap `List.#{term}` for `hd/1` or `Enum.at(_, 0)` - that keeps the wasteful sort.",
       trigger: "List.#{term}",
       line_no: line_no
     )
