@@ -10,7 +10,7 @@ with the *complementary* one. These checks fill that gap.
 
 ## Rules
 
-### Two-pass Enum chains: use `Enum.reduce/3`
+### Two-pass Enum chains: use a comprehension
 
 | Rule | Pattern flagged |
 |---|---|
@@ -33,10 +33,21 @@ with the *complementary* one. These checks fill that gap.
 | `ForgeCredoChecks.ReverseListFirst` | `xs \|> Enum.reverse() \|> List.first()` | `List.last(xs)` |
 | `ForgeCredoChecks.SortListFirst` | `Enum.sort \\| List.first` | `Enum.min`/`Enum.max`/`*_by` |
 
-The two-pass chains walk the input twice and allocate intermediate lists;
-`Enum.reduce/3` does neither. The map-building forms are pure equivalences
-with cleaner intent. The sort-then-pick patterns are O(N log N) when
-O(N) suffices.
+### `with`-macro conventions
+
+| Rule | Pattern flagged | Configurable |
+|---|---|---|
+| `ForgeCredoChecks.WithBareBinding` | `=` clauses inside a `with` chain (must be `<-`) | no |
+| `ForgeCredoChecks.WithElseClauses` | `with` blocks whose `else` exceeds `:max_clauses` | `:max_clauses` (default `1`) |
+| `ForgeCredoChecks.WithResultTag` | `<-` clauses with atom-tagged LHS outside the allowlist | `:allowed_atoms` (default `[:ok, :error]`) |
+
+The two-pass `Enum` chains walk the input twice and allocate intermediate
+lists; a comprehension does both in one pass and preserves order naturally.
+The map-building forms are pure equivalences with cleaner intent. The
+sort-then-pick patterns are O(N log N) when O(N) suffices. The `with`
+checks codify the convention that every clause uses `<-`, that step
+return shapes get normalized in helpers (so non-matches fall through),
+and that result tags stay within a project's intended vocabulary.
 
 ```elixir
 # Flagged by FilterMap
@@ -44,19 +55,24 @@ things
 |> Enum.filter(&keep?/1)
 |> Enum.map(&transform/1)
 
-# Suggested replacement
-Enum.reduce(things, [], fn x, acc ->
-  if keep?(x), do: [transform(x) | acc], else: acc
-end)
+# Preferred replacement: comprehension (one pass, in-order, no reverse)
+for x <- things, keep?(x), do: transform(x)
 ```
 
-Append `|> Enum.reverse()` only if the output order matters. For
-most callers (set membership, `Map.new`, sort, sum, count, etc.) it
-does not.
+For the `Enum`-chain checks the suggested fix order is:
 
-All four rules detect the four AST shapes Elixir parses for any
-two-call chain: direct nested call, two-step pipe, partial pipe +
-call, and longer pipe chains.
+1. **Comprehension** (preferred). Single pass, preserves order, no
+   intermediate list, no `reverse` step.
+2. **`Enum.flat_map/2`** when the transform is naturally 0-or-more (e.g.
+   `parse(x)` returning `nil`-or-value).
+3. **`Enum.reduce/3`** only as a last resort, and only when the consumer
+   does not care about order. Do *not* tack on `|> Enum.reverse/1` to
+   restore order: that second pass is exactly the tax the comprehension
+   exists to avoid.
+
+All Enum-chain rules detect the four AST shapes Elixir parses for any
+two-call chain: direct nested call, two-step pipe, partial pipe + call,
+and longer pipe chains.
 
 ## Installation
 
@@ -65,7 +81,7 @@ Add to `mix.exs`:
 ```elixir
 def deps do
   [
-    {:forge_credo_checks, "~> 0.2", only: [:dev, :test], runtime: false}
+    {:forge_credo_checks, "~> 0.3", only: [:dev, :test], runtime: false}
   ]
 end
 ```
@@ -86,7 +102,10 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.MapNewFromInto, []},
         {ForgeCredoChecks.MapNewFromReduce, []},
         {ForgeCredoChecks.ReverseListFirst, []},
-        {ForgeCredoChecks.SortListFirst, []}
+        {ForgeCredoChecks.SortListFirst, []},
+        {ForgeCredoChecks.WithBareBinding, []},
+        {ForgeCredoChecks.WithElseClauses, []},
+        {ForgeCredoChecks.WithResultTag, []}
       ]
     }
   ]
