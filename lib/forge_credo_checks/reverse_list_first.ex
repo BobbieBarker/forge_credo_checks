@@ -4,21 +4,27 @@ defmodule ForgeCredoChecks.ReverseListFirst do
     category: :refactor,
     explanations: [
       check: """
-      `List.last/1` is equivalent to `Enum.reverse() |> List.first()` but
-      makes the intent explicit and skips the intermediate reversed list.
+      Replace `xs |> Enum.reverse() |> List.first()` with `List.last(xs)`.
 
-      This:
+      ## Why
 
+      `List.last/1` returns the same value directly, without allocating the
+      reversed list. Common LLM artifact: building an accumulator with
+      `[v | acc]`, reversing at the end to restore order, then taking the
+      first element. The reverse round-trip is wasted work.
+
+      ## How to fix
+
+          # BEFORE
           xs |> Enum.reverse() |> List.first()
 
-      becomes:
-
+          # AFTER
           List.last(xs)
 
-      Common LLM artifact: building an accumulator with `[v | acc]` then
-      reversing at the end to get the original order, then taking the first
-      element. The reverse round-trip is unnecessary; `List.last` directly
-      returns the same value.
+      Both nested and piped forms are flagged:
+
+          List.first(Enum.reverse(xs))   # also flagged
+          List.first(xs |> Enum.reverse())  # also flagged
       """
     ]
 
@@ -75,7 +81,9 @@ defmodule ForgeCredoChecks.ReverseListFirst do
 
   defp issue_for(issue_meta, line_no) do
     format_issue(issue_meta,
-      message: "`List.last(xs)` replaces `xs |> Enum.reverse() |> List.first()`.",
+      message:
+        "Replace `xs |> Enum.reverse() |> List.first()` with `List.last(xs)`. " <>
+          "Both return the same element; `List.last/1` skips allocating the reversed list.",
       trigger: "List.first",
       line_no: line_no
     )

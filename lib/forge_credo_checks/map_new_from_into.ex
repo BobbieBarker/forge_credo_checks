@@ -4,21 +4,33 @@ defmodule ForgeCredoChecks.MapNewFromInto do
     category: :refactor,
     explanations: [
       check: """
+      Replace `Enum.into(%{}, fn ...)` with `Map.new/2`.
+
+      ## Why
+
       `Map.new/2` is the idiomatic API for building a map from an enumerable
       with a transform function. `Enum.into(%{}, fn ...)` does the same work
       with awkward syntax that obscures the intent.
 
-      This:
+      ## How to fix
 
-          enum
-          |> Enum.into(%{}, fn {k, v} -> {String.downcase(k), v} end)
+          # BEFORE
+          enum |> Enum.into(%{}, fn {k, v} -> {String.downcase(k), v} end)
 
-      becomes:
-
+          # AFTER
           Map.new(enum, fn {k, v} -> {String.downcase(k), v} end)
 
+      The transform function is identical; only the call site changes.
+
+      Both nested and piped forms are flagged:
+
+          Enum.into(enum, %{}, fn ... end)        # also flagged
+          enum |> Enum.into(%{}, fn ... end)      # also flagged
+
+      ## Note
+
       Stock Credo's `Refactor.MapInto` only catches `Enum.map |> Enum.into(%{})`.
-      This check covers the direct `Enum.into(%{}, fn)` form.
+      This check covers the direct `Enum.into(%{}, fn)` form Stock Credo misses.
       """
     ]
 
@@ -54,7 +66,9 @@ defmodule ForgeCredoChecks.MapNewFromInto do
 
   defp issue_for(issue_meta, line_no) do
     format_issue(issue_meta,
-      message: "`Map.new/2` replaces `Enum.into(%{}, fn ...)`.",
+      message:
+        "Replace `Enum.into(%{}, fn ...)` with `Map.new(enum, fn ...)`. " <>
+          "The transform function is identical; only the call site changes.",
       trigger: "Enum.into",
       line_no: line_no
     )
