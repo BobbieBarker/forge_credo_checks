@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0
+
+Three new checks codifying conventions for the `with` macro:
+
+- `ForgeCredoChecks.WithBareBinding`: every clause in a `with` chain must use `<-`, never `=`. Smuggled `=` bindings bypass the fall-through control flow that gives `with` its purpose.
+- `ForgeCredoChecks.WithElseClauses`: flags `with` blocks whose `else` exceeds `:max_clauses` (default `1`, configurable). Wide `else` blocks become dispatch tables on step-specific error shapes; normalize each step's return in a helper instead.
+- `ForgeCredoChecks.WithResultTag`: flags `<-` clauses whose atom-tagged LHS is outside `:allowed_atoms` (default `[:ok, :error]`, configurable). Codebases that use richer control-flow vocabulary (`:found`, `:retry`, `:locked`) extend the allowlist rather than disabling the check.
+
+Check feedback rewritten for agent readers:
+
+- Messages now lead with "Replace X with Y" instead of passive descriptions like "X is more efficient than Y", so an LLM reading a Credo issue gets a concrete edit instruction.
+- Every explanation got a `## Why / ## How to fix / ## What NOT to do` structure with concrete BEFORE/AFTER snippets.
+- The four `Enum`-chain checks (`MapReject`, `MapRejectNil`, `FilterMap`, `RejectMap`) now recommend **comprehensions first**, `Enum.flat_map/2` second (where the transform is naturally 0-or-more), and `Enum.reduce/3` only as a last resort. The `reduce + reverse` pattern is explicitly called out as an anti-pattern: paying a second pass just to undo the order an accumulator imposed is exactly the tax comprehensions exist to avoid.
+
 ## 0.2.0
 
 First Hex release.
