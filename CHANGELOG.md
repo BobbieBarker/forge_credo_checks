@@ -2,15 +2,13 @@
 
 ## 0.4.0
 
-Five new checks ported from [credence](https://hexdocs.pm/credence/) anti-pattern rules, adapted to integrate with the standard Credo runner (so `credo:disable-for-*` comments work and the rules participate in `mix credo --strict`):
+Five new checks catching common anti-patterns in LLM-generated Elixir:
 
 - `ForgeCredoChecks.InconsistentParamNames`: flags multi-clause functions where the same positional argument has different base names across clauses (e.g. `current` in one clause, `prev` in another). Drift makes readers question correctness. Literal and destructuring patterns at a position cause that position to be skipped.
 - `ForgeCredoChecks.NoKernelShadowing`: flags `=`/`fn`/`def` binding sites that shadow common `Kernel` functions (`max`, `min`, `length`, `elem`, `hd`, `tl`, `abs`, `round`, `trunc`, `div`, `rem`, `tuple_size`, `map_size`, `byte_size`, `bit_size`). Calls like `max(max, other)` become ambiguous to readers — rename the variable.
 - `ForgeCredoChecks.NoUnnecessaryCatchAllRaise`: flags `def`/`defp` clauses where every argument is a wildcard AND the body is exactly `raise(...)`. Elixir's built-in `FunctionClauseError` already names the function and the failing arguments — a hand-written catch-all that raises a hardcoded message throws that signal away.
 - `ForgeCredoChecks.NoCaseTrueFalse`: flags `case <bool_expr> do true -> ...; false -> ... end` (and variants with `_` as one clause). The `if/else` form makes the truthy branch obvious without a clause-scan. `case` on a plain variable is NOT flagged — that's typically a legitimate tristate match.
 - `ForgeCredoChecks.NoKernelOpInPipeline`: flags `pipeline |> Kernel.<op>(arg)` for comparison and boolean operators (`==`, `!=`, `===`, `!==`, `<`, `>`, `<=`, `>=`, `and`, `or`). Use the operator in infix position. Arithmetic operators (`+`, `-`, `*`, `/`) are NOT flagged — they have legitimate uses in pipelines.
-
-Auto-fix is NOT implemented for any of these checks; credo doesn't run auto-fixers, and source mutation introduces risk that's better handled by the operator at each call site.
 
 ## 0.3.0
 
