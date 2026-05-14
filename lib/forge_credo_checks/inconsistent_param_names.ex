@@ -115,7 +115,7 @@ defmodule ForgeCredoChecks.InconsistentParamNames do
     |> Enum.zip(metas)
     |> Enum.find_value(fn {base, meta} ->
       if base != first, do: Keyword.get(meta, :line)
-    end) || (metas |> hd() |> Keyword.get(:line))
+    end) || metas |> hd() |> Keyword.get(:line)
   end
 
   defp extract_base_name({name, _, ctx}) when is_atom(name) and is_atom(ctx) do
