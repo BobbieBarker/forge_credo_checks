@@ -41,6 +41,16 @@ with the *complementary* one. These checks fill that gap.
 | `ForgeCredoChecks.WithElseClauses` | `with` blocks whose `else` exceeds `:max_clauses` | `:max_clauses` (default `1`) |
 | `ForgeCredoChecks.WithResultTag` | `<-` clauses with atom-tagged LHS outside the allowlist | `:allowed_atoms` (default `[:ok, :error]`) |
 
+### LLM tells (function shape and idiomatic Elixir)
+
+| Rule | Pattern flagged |
+|---|---|
+| `ForgeCredoChecks.InconsistentParamNames` | multi-clause function whose same positional argument has different base names across clauses |
+| `ForgeCredoChecks.NoKernelShadowing` | variable binding (`=`, `fn`, `def`/`defp` param) named `max`/`min`/`length`/`elem`/`hd`/`tl`/`abs`/`round`/`trunc`/`div`/`rem`/`tuple_size`/`map_size`/`byte_size`/`bit_size` |
+| `ForgeCredoChecks.NoUnnecessaryCatchAllRaise` | `def`/`defp` clause whose every arg is a wildcard AND whose body is exactly `raise(...)` |
+| `ForgeCredoChecks.NoCaseTrueFalse` | `case <bool_expr> do true -> ...; false -> ... end` (and `true`/`_`, `false`/`_` variants) |
+| `ForgeCredoChecks.NoKernelOpInPipeline` | `pipeline \|> Kernel.<op>(arg)` for comparison/boolean operators (`==`/`!=`/`<`/`>`/`<=`/`>=`/`===`/`!==`/`and`/`or`) |
+
 The two-pass `Enum` chains walk the input twice and allocate intermediate
 lists; a comprehension does both in one pass and preserves order naturally.
 The map-building forms are pure equivalences with cleaner intent. The
@@ -81,7 +91,7 @@ Add to `mix.exs`:
 ```elixir
 def deps do
   [
-    {:forge_credo_checks, "~> 0.3", only: [:dev, :test], runtime: false}
+    {:forge_credo_checks, "~> 0.4", only: [:dev, :test], runtime: false}
   ]
 end
 ```
@@ -105,7 +115,12 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.SortListFirst, []},
         {ForgeCredoChecks.WithBareBinding, []},
         {ForgeCredoChecks.WithElseClauses, []},
-        {ForgeCredoChecks.WithResultTag, []}
+        {ForgeCredoChecks.WithResultTag, []},
+        {ForgeCredoChecks.InconsistentParamNames, []},
+        {ForgeCredoChecks.NoKernelShadowing, []},
+        {ForgeCredoChecks.NoUnnecessaryCatchAllRaise, []},
+        {ForgeCredoChecks.NoCaseTrueFalse, []},
+        {ForgeCredoChecks.NoKernelOpInPipeline, []}
       ]
     }
   ]
