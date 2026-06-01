@@ -45,9 +45,9 @@ with the *complementary* one. These checks fill that gap.
 
 | Rule | Pattern flagged |
 |---|---|
-| `ForgeCredoChecks.InconsistentParamNames` | multi-clause function whose same positional argument has different base names across clauses |
+| `ForgeCredoChecks.InconsistentParamNames` | multi-clause function (within the same module) whose same positional argument has different base names across clauses. Clauses in separate `defimpl`/`defmodule` blocks are never cross-compared. |
 | `ForgeCredoChecks.NoKernelShadowing` | variable binding (`=`, `fn`, `def`/`defp` param) named `max`/`min`/`length`/`elem`/`hd`/`tl`/`abs`/`round`/`trunc`/`div`/`rem`/`tuple_size`/`map_size`/`byte_size`/`bit_size` |
-| `ForgeCredoChecks.NoUnnecessaryCatchAllRaise` | `def`/`defp` clause whose every arg is a wildcard AND whose body is exactly `raise(...)` |
+| `ForgeCredoChecks.NoUnnecessaryCatchAllRaise` | `def`/`defp` catch-all clause (every arg wildcard, body is `raise(...)`) when at least one sibling clause exists for the same `{name, arity}` in the same module. Single-clause raise functions (stubs, arity redirects) are not flagged. |
 | `ForgeCredoChecks.NoCaseTrueFalse` | `case <bool_expr> do true -> ...; false -> ... end` (and `true`/`_`, `false`/`_` variants) |
 | `ForgeCredoChecks.NoKernelOpInPipeline` | `pipeline \|> Kernel.<op>(arg)` for comparison/boolean operators (`==`/`!=`/`<`/`>`/`<=`/`>=`/`===`/`!==`/`and`/`or`) |
 

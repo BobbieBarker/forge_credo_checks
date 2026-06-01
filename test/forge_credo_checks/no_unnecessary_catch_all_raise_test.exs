@@ -40,6 +40,47 @@ defmodule ForgeCredoChecks.NoUnnecessaryCatchAllRaiseTest do
     |> refute_issues()
   end
 
+  test "no issue: single-clause function that raises (stub)" do
+    """
+    defmodule Sample do
+      def stream(_matchspec) do
+        raise "not_implemented"
+      end
+    end
+    """
+    |> to_source_file()
+    |> run_check(NoUnnecessaryCatchAllRaise)
+    |> refute_issues()
+  end
+
+  test "no issue: single-clause arity redirect" do
+    """
+    defmodule Sample do
+      def handle_insert(_record, _opts_map) do
+        raise ArgumentError, "use handle_insert/3 instead"
+      end
+    end
+    """
+    |> to_source_file()
+    |> run_check(NoUnnecessaryCatchAllRaise)
+    |> refute_issues()
+  end
+
+  test "no issue: stub in one module not confused with clause in another" do
+    """
+    defmodule A do
+      def parse(list) when is_list(list), do: {:ok, list}
+    end
+
+    defmodule B do
+      def parse(_), do: raise("not implemented")
+    end
+    """
+    |> to_source_file()
+    |> run_check(NoUnnecessaryCatchAllRaise)
+    |> refute_issues()
+  end
+
   test "issue: catch-all that only raises" do
     """
     defmodule Sample do
