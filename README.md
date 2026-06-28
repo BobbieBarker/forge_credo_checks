@@ -6,7 +6,8 @@ anti-patterns LLMs (and some humans) commonly produce in Elixir code.
 Stock Credo ships rules for `filter |> filter`, `reject |> reject`,
 `map |> join`, etc. (same operation chained, or map terminating in a
 collector). It does **not** catch chains where one operation composes
-with the *complementary* one. These checks fill that gap.
+with the *complementary* one, or project-specific data-shape smells like
+`Map.get/2 || fallback`. These checks fill that gap.
 
 ## Rules
 
@@ -40,6 +41,13 @@ with the *complementary* one. These checks fill that gap.
 | `ForgeCredoChecks.WithBareBinding` | `=` clauses inside a `with` chain (must be `<-`) | no |
 | `ForgeCredoChecks.WithElseClauses` | `with` blocks whose `else` exceeds `:max_clauses` | `:max_clauses` (default `1`) |
 | `ForgeCredoChecks.WithResultTag` | `<-` clauses with atom-tagged LHS outside the allowlist | `:allowed_atoms` (default `[:ok, :error]`) |
+
+### Map shape normalization
+
+| Rule | Pattern flagged |
+|---|---|
+| `ForgeCredoChecks.MapGetWithOr` | `Map.get(_, _) || fallback` |
+| `ForgeCredoChecks.ChainedMapGet` | `Map.get(_, _) || Map.get(_, _)` |
 
 ### LLM tells (function shape and idiomatic Elixir)
 
@@ -91,7 +99,7 @@ Add to `mix.exs`:
 ```elixir
 def deps do
   [
-    {:forge_credo_checks, "~> 0.4", only: [:dev, :test], runtime: false}
+    {:forge_credo_checks, "~> 0.6", only: [:dev, :test], runtime: false}
   ]
 end
 ```
@@ -120,7 +128,9 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.NoKernelShadowing, []},
         {ForgeCredoChecks.NoUnnecessaryCatchAllRaise, []},
         {ForgeCredoChecks.NoCaseTrueFalse, []},
-        {ForgeCredoChecks.NoKernelOpInPipeline, []}
+        {ForgeCredoChecks.NoKernelOpInPipeline, []},
+        {ForgeCredoChecks.MapGetWithOr, []},
+        {ForgeCredoChecks.ChainedMapGet, []}
       ]
     }
   ]

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+### Added
+
+- `ForgeCredoChecks.MapGetWithOr`: flags `Map.get(_, _) || fallback`. Use `Map.get/3` for local defaults, or normalize the data once at the ingestion boundary.
+- `ForgeCredoChecks.ChainedMapGet`: flags `Map.get(_, _) || Map.get(_, _)` at higher priority because fishing across multiple maps or key spellings signals an unresolved input-shape problem.
+
 ## 0.5.0
 
 ### Fixed
