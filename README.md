@@ -59,6 +59,19 @@ with the *complementary* one, or project-specific data-shape smells like
 | `ForgeCredoChecks.NoCaseTrueFalse` | `case <bool_expr> do true -> ...; false -> ... end` (and `true`/`_`, `false`/`_` variants) |
 | `ForgeCredoChecks.NoKernelOpInPipeline` | `pipeline \|> Kernel.<op>(arg)` for comparison/boolean operators (`==`/`!=`/`<`/`>`/`<=`/`>=`/`===`/`!==`/`and`/`or`) |
 
+### Official Elixir anti-patterns
+
+A few of the [official Elixir anti-patterns](https://hexdocs.pm/elixir/what-anti-patterns.html)
+that have a reliable AST signature. The rest of the catalog is either already
+covered by stock Credo (e.g. `Warning.UnsafeToAtom`, `Refactor.FunctionArity`,
+`Refactor.WithClauses`) or is too semantic to detect statically.
+
+| Rule | Pattern flagged | Configurable |
+|---|---|---|
+| `ForgeCredoChecks.LargeStruct` | `defstruct` with `:max_fields` or more fields (a map of 32+ keys drops the BEAM flat-map representation) | `:max_fields` (default `32`) |
+| `ForgeCredoChecks.UnsupervisedSpawn` | raw `spawn`/`spawn_link`/`spawn_monitor`/`Process.spawn` (start the process under a supervisor instead) | no |
+| `ForgeCredoChecks.NamespaceTrespassing` | `defmodule` whose top segment is a dependency's namespace (`Phoenix.*`, `Ecto.*`, ...) | `:namespaces` |
+
 The two-pass `Enum` chains walk the input twice and allocate intermediate
 lists; a comprehension does both in one pass and preserves order naturally.
 The map-building forms are pure equivalences with cleaner intent. The
@@ -130,7 +143,10 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.NoCaseTrueFalse, []},
         {ForgeCredoChecks.NoKernelOpInPipeline, []},
         {ForgeCredoChecks.MapGetWithOr, []},
-        {ForgeCredoChecks.ChainedMapGet, []}
+        {ForgeCredoChecks.ChainedMapGet, []},
+        {ForgeCredoChecks.LargeStruct, []},
+        {ForgeCredoChecks.UnsupervisedSpawn, []},
+        {ForgeCredoChecks.NamespaceTrespassing, []}
       ]
     }
   ]
