@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+
+### Fixed
+
+- `InconsistentParamNames`: clauses are now scoped per module. Previously, `def`/`defp` clauses were grouped by `{name, arity}` across the entire file, so two `defimpl` blocks for the same protocol (with idiomatically different parameter names like `office` vs `van_stop`) produced false positives. Clauses in separate `defmodule`, `defimpl`, or `defprotocol` blocks are now never cross-compared. Eliminates ~49% of false positives observed in production evaluation.
+- `InconsistentParamNames`: multiple inconsistent positions in the same function now produce a single aggregated issue instead of one issue per position.
+- `NoUnnecessaryCatchAllRaise`: single-clause functions that raise are no longer flagged. The rule's premise ("FunctionClauseError already provides better diagnostics") only applies when there is at least one other clause to fall through from. Stubs, arity redirects, and deliberately-raising test doubles are no longer false positives.
+- `NoUnnecessaryCatchAllRaise`: sibling-clause counting is now scoped per module (same fix as `InconsistentParamNames`).
+- `NoUnnecessaryCatchAllRaise`: message softened from "Remove this clause" to "Consider removing this clause, or narrowing the guard if the raise message documents valid inputs."
+- `NoUnnecessaryCatchAllRaise`: check explanation now documents how to exclude test files via `.credo.exs` `files: %{excluded: [...]}` configuration.
+
 ## 0.4.0
 
 Five new checks ported from [credence](https://hexdocs.pm/credence/) anti-pattern rules, adapted to integrate with the standard Credo runner (so `credo:disable-for-*` comments work and the rules participate in `mix credo --strict`):

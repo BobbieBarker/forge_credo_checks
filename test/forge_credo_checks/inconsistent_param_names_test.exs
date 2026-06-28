@@ -50,6 +50,56 @@ defmodule ForgeCredoChecks.InconsistentParamNamesTest do
     |> refute_issues()
   end
 
+  test "no issue: protocol impls in same file are scoped independently" do
+    """
+    defmodule Sample do
+      defimpl MyProtocol, for: Office do
+        def get_label(office), do: office.label
+        def get_address(office), do: office.address
+      end
+
+      defimpl MyProtocol, for: VanStop do
+        def get_label(van_stop), do: van_stop.label
+        def get_address(van_stop), do: van_stop.address
+      end
+    end
+    """
+    |> to_source_file()
+    |> run_check(InconsistentParamNames)
+    |> refute_issues()
+  end
+
+  test "no issue: nested defmodules are scoped independently" do
+    """
+    defmodule Outer do
+      defmodule Inner1 do
+        def process(item), do: item
+      end
+
+      defmodule Inner2 do
+        def process(record), do: record
+      end
+    end
+    """
+    |> to_source_file()
+    |> run_check(InconsistentParamNames)
+    |> refute_issues()
+  end
+
+  test "issue: drift within a single defimpl is still flagged" do
+    """
+    defmodule Sample do
+      defimpl MyProtocol, for: Office do
+        def process(office, _opts), do: office
+        def process(item, opts), do: {item, opts}
+      end
+    end
+    """
+    |> to_source_file()
+    |> run_check(InconsistentParamNames)
+    |> assert_issue()
+  end
+
   test "issue: first arg drifts from `current` to `prev`" do
     """
     defmodule Sample do
@@ -84,5 +134,20 @@ defmodule ForgeCredoChecks.InconsistentParamNamesTest do
     |> to_source_file()
     |> run_check(InconsistentParamNames)
     |> assert_issue()
+  end
+
+  test "issue: multiple inconsistent positions produce a single issue" do
+    """
+    defmodule Sample do
+      def transform(input, context), do: {input, context}
+      def transform(data, env), do: {data, env}
+    end
+    """
+    |> to_source_file()
+    |> run_check(InconsistentParamNames)
+    |> assert_issue(fn issue ->
+      assert issue.message =~ "position 1"
+      assert issue.message =~ "position 2"
+    end)
   end
 end
