@@ -69,7 +69,7 @@ covered by stock Credo (e.g. `Warning.UnsafeToAtom`, `Refactor.FunctionArity`,
 | Rule | Pattern flagged | Configurable |
 |---|---|---|
 | `ForgeCredoChecks.LargeStruct` | `defstruct` with `:max_fields` or more fields (a map of 32+ keys drops the BEAM flat-map representation) | `:max_fields` (default `32`) |
-| `ForgeCredoChecks.UnsupervisedSpawn` | raw `spawn`/`spawn_link`/`spawn_monitor`/`Process.spawn` (start the process under a supervisor instead) | no |
+| `ForgeCredoChecks.UnsupervisedSpawn` | raw `spawn`/`spawn_link`/`spawn_monitor`/`Process.spawn` (start the process under a supervisor instead) | `:excluded_paths` |
 | `ForgeCredoChecks.NamespaceTrespassing` | `defmodule` whose top segment is a dependency's namespace (`Phoenix.*`, `Ecto.*`, ...) | `:namespaces` |
 
 The two-pass `Enum` chains walk the input twice and allocate intermediate

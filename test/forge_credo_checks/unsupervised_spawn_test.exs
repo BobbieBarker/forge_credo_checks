@@ -59,4 +59,26 @@ defmodule ForgeCredoChecks.UnsupervisedSpawnTest do
     |> run_check(UnsupervisedSpawn)
     |> refute_issues()
   end
+
+  test "no issue: spawn in a path matched by :excluded_paths" do
+    """
+    defmodule Sample do
+      def go, do: spawn(fn -> work() end)
+    end
+    """
+    |> to_source_file("test/sample_test.exs")
+    |> run_check(UnsupervisedSpawn, excluded_paths: [~r/_test\.exs$/])
+    |> refute_issues()
+  end
+
+  test "issue: spawn still flagged in a path not matched by :excluded_paths" do
+    """
+    defmodule Sample do
+      def go, do: spawn(fn -> work() end)
+    end
+    """
+    |> to_source_file("lib/sample.ex")
+    |> run_check(UnsupervisedSpawn, excluded_paths: [~r/_test\.exs$/])
+    |> assert_issue()
+  end
 end

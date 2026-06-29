@@ -2,6 +2,7 @@ defmodule ForgeCredoChecks.UnsupervisedSpawn do
   use Credo.Check,
     base_priority: :high,
     category: :warning,
+    param_defaults: [excluded_paths: []],
     explanations: [
       check: """
       Long-lived processes belong under a supervisor, not a raw spawn.
@@ -28,6 +29,16 @@ defmodule ForgeCredoChecks.UnsupervisedSpawn do
 
           Task.Supervisor.start_child(MyApp.TaskSupervisor, fn -> do_work() end)
           DynamicSupervisor.start_child(MyApp.Sup, {MyWorker, arg})
+
+      ## Configuration
+
+      `excluded_paths` is a list of patterns (regexes or substrings) matched
+      against each file's path; a file that matches is skipped. Use it where a
+      different convention legitimately applies, such as test files that create
+      unsupervised processes on purpose (an orphan-reaping test cannot use a
+      supervised process):
+
+          {ForgeCredoChecks.UnsupervisedSpawn, excluded_paths: [~r/_test\\.exs$/]}
       """
     ]
 
@@ -35,9 +46,21 @@ defmodule ForgeCredoChecks.UnsupervisedSpawn do
 
   @doc false
   def run(source_file, params \\ []) do
-    issue_meta = IssueMeta.for(source_file, params)
-    Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta))
+    if excluded_path?(source_file, params) do
+      []
+    else
+      issue_meta = IssueMeta.for(source_file, params)
+      Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta))
+    end
   end
+
+  defp excluded_path?(%{filename: filename}, params) when is_binary(filename) do
+    params
+    |> Params.get(:excluded_paths, __MODULE__)
+    |> Enum.any?(&(filename =~ &1))
+  end
+
+  defp excluded_path?(_source_file, _params), do: false
 
   # Kernel spawn / spawn_link / spawn_monitor called as a local function
   defp traverse({name, meta, args} = ast, issues, issue_meta)
