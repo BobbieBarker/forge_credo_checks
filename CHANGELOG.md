@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `ForgeCredoChecks.NoInlineRegex`: flags inline `~r`/`~R` regex sigils inside function bodies. Define regexes in module attributes instead so regex placement is machine-enforced instead of reviewer-attention work.
+
 ## 0.6.0
 
 ### Added
