@@ -29,5 +29,9 @@ defmodule ForgeCredoChecks do
 
     * `ForgeCredoChecks.MapGetWithOr`: `Map.get(_, _) || fallback`
     * `ForgeCredoChecks.ChainedMapGet`: `Map.get(_, _) || Map.get(_, _)`
+
+  ## LLM tells
+
+    * `ForgeCredoChecks.NoInlineRegex`: inline `~r`/`~R` regex sigils inside function bodies
   """
 end

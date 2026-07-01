@@ -58,6 +58,7 @@ with the *complementary* one, or project-specific data-shape smells like
 | `ForgeCredoChecks.NoUnnecessaryCatchAllRaise` | `def`/`defp` catch-all clause (every arg wildcard, body is `raise(...)`) when at least one sibling clause exists for the same `{name, arity}` in the same module. Single-clause raise functions (stubs, arity redirects) are not flagged. |
 | `ForgeCredoChecks.NoCaseTrueFalse` | `case <bool_expr> do true -> ...; false -> ... end` (and `true`/`_`, `false`/`_` variants) |
 | `ForgeCredoChecks.NoKernelOpInPipeline` | `pipeline \|> Kernel.<op>(arg)` for comparison/boolean operators (`==`/`!=`/`<`/`>`/`<=`/`>=`/`===`/`!==`/`and`/`or`) |
+| `ForgeCredoChecks.NoInlineRegex` | inline `~r`/`~R` regex sigils inside function bodies; define regexes in module attributes instead |
 
 ### Official Elixir anti-patterns
 
@@ -142,6 +143,7 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.NoUnnecessaryCatchAllRaise, []},
         {ForgeCredoChecks.NoCaseTrueFalse, []},
         {ForgeCredoChecks.NoKernelOpInPipeline, []},
+        {ForgeCredoChecks.NoInlineRegex, []},
         {ForgeCredoChecks.MapGetWithOr, []},
         {ForgeCredoChecks.ChainedMapGet, []},
         {ForgeCredoChecks.LargeStruct, []},
