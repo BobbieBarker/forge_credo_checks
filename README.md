@@ -73,6 +73,15 @@ covered by stock Credo (e.g. `Warning.UnsafeToAtom`, `Refactor.FunctionArity`,
 | `ForgeCredoChecks.UnsupervisedSpawn` | raw `spawn`/`spawn_link`/`spawn_monitor`/`Process.spawn` (start the process under a supervisor instead) | `:excluded_paths` |
 | `ForgeCredoChecks.NamespaceTrespassing` | `defmodule` whose top segment is a dependency's namespace (`Phoenix.*`, `Ecto.*`, ...) | `:namespaces` |
 
+### Architecture and test discipline
+
+Boundary checks that enforce project structure rather than a language idiom.
+
+| Rule | Pattern flagged | Configurable |
+|---|---|---|
+| `ForgeCredoChecks.PortProducerBoundary` | external-model producers (subprocess/HTTP dispatch) defined outside a declared boundary module | boundary allow-lists |
+| `ForgeCredoChecks.NoSourceInspectionInTest` | tests that read or AST-parse `lib/*.ex` source (`File.read!` / `Code.string_to_quoted`, literal or carried as data) instead of exercising the real function | `:included_paths` |
+
 The two-pass `Enum` chains walk the input twice and allocate intermediate
 lists; a comprehension does both in one pass and preserves order naturally.
 The map-building forms are pure equivalences with cleaner intent. The
@@ -113,7 +122,7 @@ Add to `mix.exs`:
 ```elixir
 def deps do
   [
-    {:forge_credo_checks, "~> 0.6", only: [:dev, :test], runtime: false}
+    {:forge_credo_checks, "~> 0.7", only: [:dev, :test], runtime: false}
   ]
 end
 ```
