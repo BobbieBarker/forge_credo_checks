@@ -1,10 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 - 2026-07-03
 
 ### Added
 
-- `ForgeCredoChecks.NoInlineRegex`: flags inline `~r`/`~R` regex sigils inside function bodies. Define regexes in module attributes instead so regex placement is machine-enforced instead of reviewer-attention work.
+- `ForgeCredoChecks.LargeStruct`: flags structs with 32 or more fields, which lose the BEAM's flat-map optimization.
+- `ForgeCredoChecks.UnsupervisedSpawn`: flags raw `spawn`/`Task.start` of long-lived processes that belong under a supervisor. Supports `:excluded_paths` to skip files (e.g. test support) by path.
+- `ForgeCredoChecks.NamespaceTrespassing`: flags defining your own modules inside a dependency's namespace.
+- `ForgeCredoChecks.NoInlineRegex`: flags inline `~r`/`~R` regex sigils inside function bodies. Define regexes as module attributes so placement is machine-enforced instead of reviewer-attention work.
+- `ForgeCredoChecks.PortProducerBoundary`: flags external-model producers (subprocess/HTTP dispatch) outside the set of declared boundary modules, so a new producer must be added to an explicit allow-list.
+- `ForgeCredoChecks.NoSourceInspectionInTest`: flags tests that verify behaviour by reading or AST-parsing production source — `File.read!`/`File.stream!`/`Code.string_to_quoted` of a `lib/*.ex` path (literal or carried as data) — instead of exercising the real function. Catches both the literal-read and the data-carried-path + `Code.string_to_quoted` forms, while sparing data-only fixtures and meta-lints that parse only test source.
 
 ## 0.6.0
 
