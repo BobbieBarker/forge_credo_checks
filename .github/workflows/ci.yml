@@ -52,3 +52,60 @@ jobs:
       - name: Check formatting
         if: matrix.elixir == '1.20.1'
         run: mix format --check-formatted
+
+  changelog:
+    name: CHANGELOG updated
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the merge-base with the PR base branch is available.
+          fetch-depth: 0
+
+      - name: Require a CHANGELOG entry for lib/ changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+
+          # Escape hatches for changes that legitimately need no changelog entry
+          # (pure refactors, comment/format fixes, CI/meta changes):
+          #   - apply the `skip-changelog` label, or
+          #   - put `[skip changelog]` in the PR title.
+          if printf '%s' "$LABELS" | tr ',' '\n' | grep -qx 'skip-changelog'; then
+            echo "skip-changelog label present — not requiring a CHANGELOG entry."
+            exit 0
+          fi
+          if printf '%s' "$PR_TITLE" | grep -qiF '[skip changelog]'; then
+            echo "[skip changelog] in PR title — not requiring a CHANGELOG entry."
+            exit 0
+          fi
+
+          # Diff only what THIS PR changed (merge-base..head), so a base branch
+          # that has moved ahead does not produce a false positive.
+          changed="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}")"
+          echo "Changed files:"; printf '%s\n' "$changed"
+
+          lib_changed="$(printf '%s\n' "$changed" | grep -E '^lib/' || true)"
+          changelog_changed="$(printf '%s\n' "$changed" | grep -xF 'CHANGELOG.md' || true)"
+
+          if [ -n "$lib_changed" ] && [ -z "$changelog_changed" ]; then
+            echo "::error::lib/ changed but CHANGELOG.md was not updated."
+            {
+              echo "### CHANGELOG check failed"
+              echo ""
+              echo "This PR changes \`lib/\` but does not update \`CHANGELOG.md\`:"
+              echo ""
+              printf '%s\n' "$lib_changed" | sed 's/^/- /'
+              echo ""
+              echo "Add an entry under an \`## Unreleased\` (or the next version) heading, or"
+              echo "apply the \`skip-changelog\` label / put \`[skip changelog]\` in the PR title."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "CHANGELOG check passed."
