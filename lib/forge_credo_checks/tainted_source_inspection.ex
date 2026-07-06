@@ -477,7 +477,8 @@ defmodule ForgeCredoChecks.TaintedSourceInspection do
          state
        )
        when is_list(args) do
-    literal_join_source_path?(args) or Enum.any?(args, &source_path_piece?(&1, state))
+    literal_join_source_path?(args) or segmented_join_source_path?(args) or
+      Enum.any?(args, &source_path_piece?(&1, state))
   end
 
   defp source_path_expr?(ast, state) do
@@ -508,12 +509,30 @@ defmodule ForgeCredoChecks.TaintedSourceInspection do
     end
   end
 
+  defp segmented_join_source_path?(args) do
+    args
+    |> join_parts()
+    |> Enum.filter(&is_binary/1)
+    |> segmented_source_path?()
+  end
+
   defp literal_join_path([parts]) when is_list(parts) do
     if Enum.all?(parts, &is_binary/1), do: Path.join(parts)
   end
 
   defp literal_join_path(args) when is_list(args) do
     if Enum.all?(args, &is_binary/1), do: Path.join(args)
+  end
+
+  defp join_parts([parts]) when is_list(parts), do: parts
+  defp join_parts(parts) when is_list(parts), do: parts
+
+  defp segmented_source_path?([]), do: false
+
+  defp segmented_source_path?(parts) do
+    parts
+    |> Path.join()
+    |> source_path_literal?(false)
   end
 
   defp source_path_literal?(path, allow_bare?) do

@@ -73,17 +73,33 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuardTest do
     |> refute_issues()
   end
 
-  test "no issue: function captures only mention the guarded calls" do
+  test "no issue: remote arity captures only reference the guarded calls" do
     """
     defmodule CaptureMentionTest do
       def callbacks do
-        {&Process.sleep/1, &:sys.replace_state/2, &Process.sleep(&1)}
+        {&Process.sleep/1, &:sys.replace_state/2}
       end
     end
     """
     |> to_source_file("test/anubis/capture_mention_test.exs")
     |> run_check(TimingAndPrivateStateGuard)
     |> refute_issues()
+  end
+
+  test "issue: executable capture shorthand is still a call body" do
+    issues =
+      """
+      defmodule CaptureCallTest do
+        def wait_all(delays, pid) do
+          Enum.each(delays, &Process.sleep(&1))
+          Enum.each(delays, &:sys.replace_state(pid, &1))
+        end
+      end
+      """
+      |> to_source_file("test/anubis/capture_call_test.exs")
+      |> run_check(TimingAndPrivateStateGuard)
+
+    assert Enum.map(issues, & &1.trigger) == [":sys.replace_state", "Process.sleep"]
   end
 
   test "no issue: excluded_paths skips migration-bridge files" do

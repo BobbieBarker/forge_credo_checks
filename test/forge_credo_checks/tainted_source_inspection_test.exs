@@ -84,6 +84,22 @@ defmodule ForgeCredoChecks.TaintedSourceInspectionTest do
     |> assert_issue(%{trigger: "String.contains?"})
   end
 
+  test "issue: segmented Path.join source path with dynamic directory pieces" do
+    """
+    defmodule SourceGrepTest do
+      @source_path Path.join([__DIR__, "..", "lib", "foo.ex"])
+
+      def check do
+        content = File.read!(@source_path)
+        assert content =~ "def foo"
+      end
+    end
+    """
+    |> to_source_file("test/anubis/source_grep_test.exs")
+    |> run_check(TaintedSourceInspection)
+    |> assert_issue(%{trigger: "=~"})
+  end
+
   test "no issue: terminal doc and artifact reads are outside the check" do
     """
     defmodule ArtifactScanTest do

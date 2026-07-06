@@ -60,8 +60,15 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
 
   defp excluded_path?(_source_file, _params), do: false
 
-  defp traverse({:&, meta, [_body]}, issues, _issue_meta) do
-    {{:&, meta, [:__captured_timing_private_state_guard__]}, issues}
+  defp traverse(
+         {:&, amp_meta,
+          [{:/, slash_meta, [{{:., _dot_meta, [_mod, _fun]}, _call_meta, []}, arity]}]},
+         issues,
+         _issue_meta
+       )
+       when is_integer(arity) do
+    {{:&, amp_meta, [{:/, slash_meta, [:__captured_timing_private_state_guard__, arity]}]},
+     issues}
   end
 
   defp traverse(
