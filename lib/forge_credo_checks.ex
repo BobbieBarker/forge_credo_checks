@@ -33,5 +33,10 @@ defmodule ForgeCredoChecks do
   ## LLM tells
 
     * `ForgeCredoChecks.NoInlineRegex`: inline `~r`/`~R` regex sigils inside function bodies
+
+  ## Architecture and test discipline
+
+    * `ForgeCredoChecks.TaintedSourceInspection`: source-grep constructs applied to text read from non-test `.ex` / `.exs` files
+    * `ForgeCredoChecks.TimingAndPrivateStateGuard`: `Process.sleep/1` and `:sys.replace_state/2` call nodes
   """
 end
