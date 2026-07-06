@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `ForgeCredoChecks.TaintedSourceInspection`: flags `=~`, `String.contains?`, `Regex.*`, and `Code.eval_string` when they inspect text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source paths, while leaving terminal artifact reads quiet. Supports `:excluded_paths` for shrinking migration bridges.
+
 ## 0.7.0 - 2026-07-03
 
 ### Added
