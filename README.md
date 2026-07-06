@@ -82,6 +82,7 @@ Boundary checks that enforce project structure rather than a language idiom.
 | `ForgeCredoChecks.PortProducerBoundary` | external-model producers (subprocess/HTTP dispatch) defined outside a declared boundary module | boundary allow-lists |
 | `ForgeCredoChecks.NoSourceInspectionInTest` | tests that read or AST-parse `lib/*.ex` source (`File.read!` / `Code.string_to_quoted`, literal or carried as data) instead of exercising the real function | `:included_paths` |
 | `ForgeCredoChecks.TaintedSourceInspection` | `=~` / `String.contains?` / `Regex.*` / `Code.eval_string` applied to text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source | `:excluded_paths` |
+| `ForgeCredoChecks.TimingAndPrivateStateGuard` | actual `Process.sleep/1` and `:sys.replace_state/2` call nodes; string and atom mentions are not flagged | `:excluded_paths` |
 
 The two-pass `Enum` chains walk the input twice and allocate intermediate
 lists; a comprehension does both in one pass and preserves order naturally.
@@ -159,7 +160,8 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.LargeStruct, []},
         {ForgeCredoChecks.UnsupervisedSpawn, []},
         {ForgeCredoChecks.NamespaceTrespassing, []},
-        {ForgeCredoChecks.TaintedSourceInspection, []}
+        {ForgeCredoChecks.TaintedSourceInspection, []},
+        {ForgeCredoChecks.TimingAndPrivateStateGuard, []}
       ]
     }
   ]
