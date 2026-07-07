@@ -33,6 +33,7 @@ defmodule ForgeCredoChecks do
   ## LLM tells
 
     * `ForgeCredoChecks.NoInlineRegex`: inline `~r`/`~R` regex sigils inside function bodies
+    * `ForgeCredoChecks.NoAnyOrTermTypes`: `any()` / `term()` in specs, callbacks, and type definitions
 
   ## Architecture and test discipline
 
