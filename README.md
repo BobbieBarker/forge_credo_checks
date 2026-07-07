@@ -60,6 +60,12 @@ with the *complementary* one, or project-specific data-shape smells like
 | `ForgeCredoChecks.NoKernelOpInPipeline` | `pipeline \|> Kernel.<op>(arg)` for comparison/boolean operators (`==`/`!=`/`<`/`>`/`<=`/`>=`/`===`/`!==`/`and`/`or`) |
 | `ForgeCredoChecks.NoInlineRegex` | inline `~r`/`~R` regex sigils inside function bodies; define regexes in module attributes instead |
 
+### Typespec precision
+
+| Rule | Pattern flagged |
+|---|---|
+| `ForgeCredoChecks.NoAnyOrTermTypes` | `any()` / `term()` in `@spec`, `@callback`, `@macrocallback`, `@type`, `@typep`, and `@opaque` declarations |
+
 ### Official Elixir anti-patterns
 
 A few of the [official Elixir anti-patterns](https://hexdocs.pm/elixir/what-anti-patterns.html)
@@ -155,6 +161,7 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.NoCaseTrueFalse, []},
         {ForgeCredoChecks.NoKernelOpInPipeline, []},
         {ForgeCredoChecks.NoInlineRegex, []},
+        {ForgeCredoChecks.NoAnyOrTermTypes, []},
         {ForgeCredoChecks.MapGetWithOr, []},
         {ForgeCredoChecks.ChainedMapGet, []},
         {ForgeCredoChecks.LargeStruct, []},
