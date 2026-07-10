@@ -4,6 +4,7 @@
 
 ### Added
 
+- `ForgeCredoChecks.MultilineStringConcat`: flags a wrapped string literal assembled by `<>`-concatenating two or more string literals across multiple source lines, and suggests a heredoc instead. Fires once per chain (not once per `<>`); leaves single-line `<>`, variable operands, and interpolated operands alone.
 - `ForgeCredoChecks.NoAnyOrTermTypes`: flags broad `any()` / `term()` uses in specs, callbacks, macrocallbacks, public/private/opaque type definitions, and nested type expressions so Dialyzer keeps useful shape information.
 - `ForgeCredoChecks.TaintedSourceInspection`: flags `=~`, `String.contains?`, `Regex.*`, and `Code.eval_string` when they inspect text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source paths, while leaving terminal artifact reads quiet. Supports `:excluded_paths` for shrinking migration bridges.
 - `ForgeCredoChecks.TimingAndPrivateStateGuard`: flags actual `Process.sleep/1` and `:sys.replace_state/2` call nodes while ignoring string, atom, and capture mentions. Supports `:excluded_paths` for shrinking migration bridges.

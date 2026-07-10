@@ -59,6 +59,7 @@ with the *complementary* one, or project-specific data-shape smells like
 | `ForgeCredoChecks.NoCaseTrueFalse` | `case <bool_expr> do true -> ...; false -> ... end` (and `true`/`_`, `false`/`_` variants) |
 | `ForgeCredoChecks.NoKernelOpInPipeline` | `pipeline \|> Kernel.<op>(arg)` for comparison/boolean operators (`==`/`!=`/`<`/`>`/`<=`/`>=`/`===`/`!==`/`and`/`or`) |
 | `ForgeCredoChecks.NoInlineRegex` | inline `~r`/`~R` regex sigils inside function bodies; define regexes in module attributes instead |
+| `ForgeCredoChecks.MultilineStringConcat` | a wrapped string literal assembled by `<>`-concatenating string literals across multiple source lines; write it as a heredoc instead |
 
 ### Typespec precision
 
@@ -161,6 +162,7 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.NoCaseTrueFalse, []},
         {ForgeCredoChecks.NoKernelOpInPipeline, []},
         {ForgeCredoChecks.NoInlineRegex, []},
+        {ForgeCredoChecks.MultilineStringConcat, []},
         {ForgeCredoChecks.NoAnyOrTermTypes, []},
         {ForgeCredoChecks.MapGetWithOr, []},
         {ForgeCredoChecks.ChainedMapGet, []},

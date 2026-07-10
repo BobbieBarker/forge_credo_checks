@@ -1,0 +1,14 @@
+{
+  "umbrella_apps": [],
+  "repo": "BobbieBarker/forge_credo_checks",
+  "project_name": "forge_credo_checks",
+  "ci_command": "mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && MIX_ENV=dev mix dialyzer && mix test",
+  "module_prefix": "ForgeCredoChecks",
+  "primary_language": "elixir",
+  "ci_required_patterns": [],
+  "ci_success_patterns": [],
+  "framework_sha": "d26361c269a8bea6ed412deb921f68f3c8049c1d",
+  "ticket_prefixes": [
+    "FGE"
+  ]
+}

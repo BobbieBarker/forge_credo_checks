@@ -1,0 +1,248 @@
+{
+  "contexts": {
+    "config_module": {
+      "description": "Per-app Config modules",
+      "file_patterns": [
+        "lib/*/config.ex"
+      ],
+      "rules": [
+        {
+          "adr": "013",
+          "rule": "All Application.get_env calls centralized here. @moduledoc false. One @app attribute. Each function returns a typed value with sensible default. Light coercion (string->int) belongs here.",
+          "summary": "Single boundary for env access"
+        }
+      ]
+    },
+    "controller": {
+      "description": "Phoenix controllers",
+      "exclude_patterns": [
+        "*_test.exs",
+        "*_json.ex"
+      ],
+      "file_patterns": [
+        "apps//lib//controllers/**/*.ex"
+      ],
+      "rules": [
+        {
+          "adr": "001",
+          "rule": "Use action_fallback to a centralized fallback controller. Pattern match on ErrorMessage codes (:not_found, :unauthorized, :unprocessable_entity). Don't handle errors inline.",
+          "summary": "ErrorMessage for error responses"
+        }
+      ]
+    },
+    "genserver_module": {
+      "description": "GenServer Server and Impl modules (chad-king/adrs elixir-otp series)",
+      "exclude_patterns": [
+        "*_test.exs"
+      ],
+      "file_patterns": [
+        "**/*_server.ex",
+        "**/*_impl.ex"
+      ],
+      "rules": [
+        {
+          "adr": "elixir-otp/adr-002",
+          "rule": "Split every GenServer into MyApp.X (API, the boundary callers depend on), MyApp.X.Server (callbacks only), MyApp.X.Impl (functions over explicit state, no GenServer awareness). Callers depend on the API module and never reach past it.",
+          "summary": "Three modules per GenServer: API, Server, Impl"
+        },
+        {
+          "adr": "elixir-otp/adr-003",
+          "rule": "GC pauses scale with the live heap of the process being collected. State holds coordination metadata, not bulk data. Bulk data goes in ETS, Postgres, or a cache abstraction. Inside the state struct, separate config (set once at init) from working state (changes per request).",
+          "summary": "Keep state small, push storage out of process"
+        },
+        {
+          "adr": "elixir-otp/adr-004",
+          "rule": "Callbacks return quickly: bounded and predictable, not 'fast in the happy case.' No HTTP, slow DB, file I/O, or unbounded computation inside handle_call/handle_cast/handle_info. Never raise the call timeout to paper over a slow callback; fix the callback.",
+          "summary": "Never block the GenServer processing loop"
+        },
+        {
+          "adr": "elixir-otp/adr-007",
+          "rule": "Every GenServer accepts a configurable :name in opts, with __MODULE__ as the default. Opts are maps, not keyword lists, validated at start_link with NimbleOptions. When the server has substitutable collaborators, inject them via opts; prefer opts-injection over Mox for internal collaborators (caches, supervisors, registries, mailers backed by your own modules). Reserve Mox for boundaries with external coupling (HTTP APIs, clocks, third-party SDKs). When the server owns storage, use a cache library with a sandbox adapter rather than :ets.new/2 directly in init/1.",
+          "summary": "Designed for test isolation"
+        }
+      ]
+    },
+    "liveview": {
+      "description": "LiveView modules",
+      "exclude_patterns": [
+        "*_test.exs",
+        "*components*"
+      ],
+      "file_patterns": [
+        "apps//lib//live/**/*.ex"
+      ],
+      "rules": [
+        {
+          "adr": "017",
+          "rule": "Every callback builds a pipeline ending with then(&{:ok, &1}) or then(&{:noreply, &1}). Never assign imperatively and return a standalone tuple. Alias Phoenix.LiveView.Socket and pattern match %Socket{assigns: assigns}.",
+          "summary": "Socket pipeline style"
+        },
+        {
+          "adr": "017",
+          "rule": "Use stream/3,4 and stream_insert/3 for collections. Never assign full lists. Use assign_async/stream_async for DB reads so page skeleton renders immediately.",
+          "summary": "Streams for collections"
+        },
+        {
+          "adr": "017",
+          "rule": "Each event type, param pattern, and render variant gets its own function clause. No if/cond/nested case inside callbacks.",
+          "summary": "Multiple function clauses, not conditionals"
+        },
+        {
+          "adr": "elixir-otp/adr-014",
+          "rule": "Use with for sequences of fallible operations only. Not for function composition: use pipes instead (ADR-012). Every step in a with chain uses <-, never plain = bindings. Avoid else clauses; normalize errors in the called functions so the bare with falls through cleanly.",
+          "summary": "Keep `with` chains pure inside helpers"
+        }
+      ]
+    },
+    "oban_worker": {
+      "description": "Oban worker modules",
+      "file_patterns": [
+        "apps//lib/**/*_worker.ex"
+      ],
+      "rules": [
+        {
+          "adr": "026",
+          "rule": "Permanent failures (not found, invalid args, business rule) -> {:cancel, reason}. Transient failures (API timeout, network) -> {:error, reason}. Rate limited with Retry-After -> {:snooze, seconds}.",
+          "summary": "{:cancel, reason} for permanent failures"
+        },
+        {
+          "adr": "026",
+          "rule": "Expose enqueue/N for callers. Add catch-all perform/1 clause for invalid args returning {:cancel, _}. Args are always STRING keys in perform — pattern match on %{\"key\" => value}.",
+          "summary": "Enqueue helper + catch-all guard"
+        },
+        {
+          "adr": "026",
+          "rule": "Workers live in . All public enqueue functions exposed via root module defdelegate. External callers use the root module, never reach into submodules.",
+          "summary": "Worker placement"
+        }
+      ]
+    },
+    "test_file": {
+      "description": "ExUnit test files",
+      "file_patterns": [
+        "test/**/*_test.exs"
+      ],
+      "rules": [
+        {
+          "adr": "011",
+          "rule": "Use assert with pattern matching: assert {:ok, %Schema{field: ^expected}} = Context.function(params). No assert x == y. Pin expected values with ^.",
+          "summary": "Pattern matching assertions"
+        },
+        {
+          "adr": "011",
+          "rule": "Use insert(:factory) for test data, not context functions. No static strings for data values — use Faker. Exception: error messages and enum values may be literal.",
+          "summary": "ExMachina + Faker for test data"
+        },
+        {
+          "adr": "elixir-otp/adr-010",
+          "rule": "Use start_supervised!/1 for any process you spin up in a test (auto teardown, $callers propagation). Test pure Impl callbacks directly when ADR-002's three-module split allows it. Never :sys.replace_state or :sys.get_state on library-owned processes. application.ex must not branch on Mix.env(). Know which OTP primitives propagate $callers for SQL Sandbox compatibility (Task.async, Task.Supervisor.async_*, start_supervised! propagate; GenServer.call/cast, send, app-supervised processes do not).",
+          "summary": "Test OTP code through real processes"
+        },
+        {
+          "adr": "elixir-otp/adr-007",
+          "rule": "Inject internal collaborators (caches, supervisors, registries, mailers backed by your own modules) via opts rather than Mox. Reserve Mox for boundaries with external coupling (HTTP APIs, clocks, third-party SDKs with stateful sessions). See ADR-007 Rule 5.",
+          "summary": "Prefer opts-injection over Mox for substitutable collaborators"
+        },
+        {
+          "adr": "020",
+          "rule": "Tag every outbound request with finch_private: %{service: atom_from_closed_set} (:stripe, :linear, etc.). Pipe responses through SharedUtils.HTTP.handle_response(result, :service) to normalize errors to %ErrorMessage{}. Test with Req.Test at the HTTP boundary; never Mox at the adapter level (Mox skips request construction and parsing). Test stubs MUST assert on conn.method, conn.request_path, and the request body via Plug.Conn.read_body/1; never just return a canned response. Use Req.Test.stub/2 for setup defaults; use Req.Test.expect/2 with `setup :verify_on_exit!` for ordered/counted assertions. See .claude/adr-agent/020-http-boundary-testing.md",
+          "summary": "Test HTTP boundaries with Req.Test, asserting on the request"
+        }
+      ]
+    }
+  },
+  "description": "ADR rules registry — maps file context to relevant rules. Used by the PreToolUse:Edit injector to give agents the right rules at the right time.",
+  "global_rules": [
+    {
+      "adr": "elixir-otp/adr-012",
+      "rule": "Express sequential transformations as |> pipelines, not chained variable rebindings (x = f(x); x = g(x); x). Use & captures (&String.upcase/1, &Mod.fun(&1, args)) over anonymous wrappers (fn x -> Mod.fun(x) end). Use then/2 to adapt shape mid-pipeline when the next call does not accept the threaded value first. Use tap/2 for in-chain side effects (logging, telemetry, debug taps) that do not transform the value. See .claude/adr-agent/elixir-otp/adr-012-compose-with-pipes-not-named-intermediates.md",
+      "summary": "Compose with pipes, not named intermediates"
+    },
+    {
+      "adr": "n/a",
+      "rule": "Never add @compile {:no_warn_undefined, Module}. It means the dependency structure is wrong. Fix it: move the module, add the dep, or refactor through Config/behaviour. Only acceptable for compile-time-resolved Mox mocks.",
+      "summary": "Never suppress no_warn_undefined"
+    },
+    {
+      "adr": "otp",
+      "rule": "Three OTP rules not covered by the elixir-otp/adr-NNN series: never call receive inside a GenServer callback (it stalls the loop). Use Process.send_after(self(), ...) for self-scheduled periodic work. Use Registry for dynamic process names rather than a hand-rolled name map.",
+      "summary": "Adjacent OTP patterns"
+    },
+    {
+      "adr": "elixir-otp/adr-001",
+      "rule": "Use a plain module for pure logic, Agent for simple shared state, Task / Task.Supervisor for concurrent work, Registry for named lookup, ETS for shared concurrent-read state. Reach for GenServer only when you need serialized access to mutable state with multi-field invariants, a scarce resource, or coordinated calls/casts/handle_info.",
+      "summary": "Default to simpler primitives before GenServer"
+    },
+    {
+      "adr": "elixir-otp/adr-005",
+      "rule": "Three OTP mechanisms keep callbacks bounded: handle_continue/2 for post-init deferred work, Task.Supervisor.start_child / async_nolink for fire-and-forget, GenServer.reply/2 for accept-now-respond-later. Never spawn/1 raw, never spawn_link from a server.",
+      "summary": "Move slow work off the processing loop"
+    },
+    {
+      "adr": "elixir-otp/adr-006",
+      "rule": "If process A produces work, process B handles it, and A can outpace B, use a demand-driven pipeline. Never build it on naked GenServer.cast: cast has no flow control and the consumer mailbox grows unbounded.",
+      "summary": "Use GenStage / Flow / Broadway for producer-consumer pipelines"
+    },
+    {
+      "adr": "elixir-otp/adr-008",
+      "rule": "terminate/2 runs when a callback returns {:stop, _, _}, when a callback raises, or when a process is trapping exits and receives a handled exit signal. Brutal kills, Process.exit(pid, :kill), VM hard shutdown, and SIGKILL all skip it. Trap exits in init/1 if you need cleanup on supervisor :shutdown. Default :shutdown timeout (5000 ms) is fine; do not pad. Critical state must be durable on arrival, not flushed at shutdown.",
+      "summary": "terminate/2 runs in three specific cases only"
+    },
+    {
+      "adr": "elixir-otp/adr-009",
+      "rule": "Express dispatch with Elixir's structural constructs, not if/case/cond inside function bodies. Use multi-clause function heads when the discriminator is argument shape, a variant tag, or an atom value. Use multi-clause heads with when guards when the discriminator is a predicate (numeric range, is_* type tag, custom check). Use with for sequences of fallible operations returning {:ok, _} | {:error, _}. Use a pipeline with |>, tap/2, then/2 for sequential transformations of a single value. Use cond for ordered predicates with no single discriminating argument. Inline if/unless inside a larger expression (string interpolation, struct field, list element, function argument) for value selection is fine. Top-of-body if/case used to dispatch is the smell. See .claude/adr-agent/elixir-otp/adr-009-structural-dispatch-over-imperative-branching.md",
+      "summary": "Structural dispatch over imperative branching"
+    },
+    {
+      "adr": "elixir-otp/adr-010",
+      "rule": "Use start_supervised!/1 for any process you spin up in a test (automatic teardown, $callers propagation). Test Impl callbacks directly when the GenServer follows the three-module split from ADR-002 (state in, state out). Never manipulate library-owned process state with :sys.replace_state or :sys.get_state. application.ex is identical across environments; per-test variance comes from opts injection, not Mix.env() branching. Know which OTP primitives propagate $callers: Task.async/1, Task.Supervisor.async_*/2, start_supervised!/1 propagate; GenServer.call/cast, send/2, and app-supervised processes do not. See .claude/adr-agent/elixir-otp/adr-010-test-otp-code-through-real-processes.md",
+      "summary": "Test OTP code through real processes"
+    },
+    {
+      "adr": "elixir-otp/adr-011",
+      "rule": "When you need runtime-pluggable internal algorithms over the same input space (pricing variants, classifier strategies, scheduler policies), declare a behaviour with @callback for the contract and write each strategy as a module that @behaviour's it with @impl true. Inject the strategy module via opts (Map.get(opts, :pricing, MyApp.Pricing.Standard)), not Application.compile_env. Don't reach for Strategy when shape-based dispatch in a function head fits (ADR-009 Rule 1 covers that). Don't conflate with Ports & Adapters: Strategy is for internal algorithms over the same input space; P&A is for external-system boundaries with vendor types and HTTP. See .claude/adr-agent/elixir-otp/adr-011-strategy-pattern-via-behaviours.md",
+      "summary": "Strategy pattern via behaviours"
+    },
+    {
+      "adr": "elixir-otp/adr-013",
+      "rule": "Define every domain entity as a struct with three discipline points: @type t :: %__MODULE__{} listing each field's type for Dialyzer flow; @enforce_keys for fields required at construction (matches the non-nullable fields in @type t); @derive {Jason.Encoder, only: [...]} with an explicit field list to gate JSON exposure (never bare @derive Jason.Encoder, which leaks new fields silently). Plain maps are reserved for ad-hoc data with no enduring shape. See .claude/adr-agent/elixir-otp/adr-013-use-structs-for-domain-entities.md",
+      "summary": "Use structs for domain entities"
+    },
+    {
+      "adr": "elixir-otp/adr-014",
+      "rule": "Inside a with chain, every line uses <- (no plain = bindings; an = line is infallible work smuggled into the chain shape and does not participate in fall-through). Avoid else clauses; normalize return shapes in the called functions so the bare with falls through cleanly. Reach for with only when at least two fallible steps depend on each other; a single fallible step is case, a pure-transformation chain is a pipeline. See .claude/adr-agent/elixir-otp/adr-014-keep-with-chains-pure.md",
+      "summary": "Keep `with` chains pure"
+    },
+    {
+      "adr": "elixir-otp/adr-015",
+      "rule": "Use Repo.transact/1 (provided by EctoShorts or rolled at project level) for every database transaction. The wrapper auto-commits on {:ok, _} and auto-rolls back on {:error, _}. The body is a function returning {:ok, value} or {:error, reason}; the with chain inside is bare (no else, per ADR-014 Rule 2). Never call Repo.transaction/1,2 directly: it requires manual Repo.rollback/1 and re-introduces the else-clause anti-pattern. Forgetting the manual rollback returns {:ok, {:error, reason}} which Ecto reads as a successful commit. See .claude/adr-agent/elixir-otp/adr-015-use-repo-transact-for-transactions.md",
+      "summary": "Use Repo.transact for database transactions"
+    },
+    {
+      "adr": "elixir-otp/adr-016",
+      "rule": "When data is passing through to a downstream sink (export, upload, relay, archive), stream source -> transform -> sink with bounded memory. Use Repo.stream/2 for DB cursors (inside a transaction), ExAws.S3.upload/4 to consume Enumerables into multipart uploads, ExAws.S3.stream!/2 for S3 sources, Zstream for streaming ZIP, NimbleCSV.dump_to_stream/1 for streaming CSV, allow_upload/3 with external: for LiveView browser-to-storage uploads. Never use temp files for data flow (they're buffering with disk indirection added: same memory cost from the consumer side, plus disk-full failures and race conditions). Buffer (with documented size limit) only when the server genuinely needs the complete payload to do its job, like parsing full structure or computing aggregates. See .claude/adr-agent/elixir-otp/adr-016-stream-pass-through-data.md",
+      "summary": "Stream pass-through data, source to sink"
+    },
+    {
+      "adr": "001",
+      "rule": "Every fallible function returns {:ok, value} | {:error, %ErrorMessage{}}. Construct errors via ErrorMessage.not_found/2, ErrorMessage.unauthorized/2, etc. (closed set of HTTP-derived code atoms). Never bare strings, never bare atoms. The message field is human-readable; the details field carries debugging context (params, IDs, third-party error payloads). Use ErrorMessage.t_res(type) for return-type specs. See .claude/adr-agent/001-error-systems.md",
+      "summary": "Structured errors via %ErrorMessage{}"
+    },
+    {
+      "adr": "025",
+      "rule": "Never write external API calls from memory or by analogy to neighboring APIs. Read the official docs (WebFetch, WebSearch) first. For GraphQL, curl the query against the real API before writing the Elixir client; preserve the verifying curl as a comment. Test stubs MUST assert on conn.method, conn.request_path, and the request body, not just return canned responses (the Symphony Linear `nodes` incident shipped because tests only checked the response). Maintain at least one @tag :integration test per external API. A warning that fires every time is a bug, not a transient issue: investigate immediately. See .claude/adr-agent/025-external-api-verification.md",
+      "summary": "Verify external APIs before writing client code"
+    },
+    {
+      "adr": "002",
+      "rule": "A port is the internal-model <-> external-model serialization boundary. The invariant is that external models never cross into the core un-deserialized, and core models never leak outward as vendor-shaped payloads. A @behaviour is earned by two or more real implementations of the same boundary contract; a Mox test mock does not count. Realization is a menu: ordinary DB access uses context/schema/query modules with no behaviour; a swappable vendor with 2+ implementations uses behaviour + adapter + serializer; a single implementation uses a containment module that owns translation. Over-applying ports and adapters is a failure mode equal to under-applying it. See .claude/adr-agent/002-ports-and-adapters.md",
+      "summary": "Ports & Adapters for external services"
+    },
+    {
+      "adr": "013",
+      "rule": "Each app has one <App>.Config module (@moduledoc false) that owns environment access. Business logic does not call Application.get_env/2 or System.get_env/1 directly; all reads go through Config functions with typed defaults. Adapter wiring is @adapter Config.adapter() at compile time (no runtime adapter switching on the hot path). Application.compile_env/3 stays at the use site (it cannot be wrapped in Config) with a one-line comment naming why. Tests configure values via config/test.exs, not Application.put_env at runtime. See .claude/adr-agent/013-config-module.md",
+      "summary": "Config module per app for environment access"
+    }
+  ],
+  "version": 1
+}
