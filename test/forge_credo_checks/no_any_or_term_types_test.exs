@@ -45,6 +45,43 @@ defmodule ForgeCredoChecks.NoAnyOrTermTypesTest do
     end)
   end
 
+  test "issue: distinct columns for each banned type on a shared spec line" do
+    """
+    defmodule Sample do
+      @spec run((term() -> any())) :: {:ok, [term()]}
+      def run(callback), do: {:ok, [callback.(:value)]}
+    end
+    """
+    |> to_source_file()
+    |> run_check(NoAnyOrTermTypes)
+    |> assert_issues(fn issues ->
+      assert Enum.map(issues, &{&1.trigger, &1.line_no, &1.column}) == [
+               {"term()", 2, 14},
+               {"any()", 2, 24},
+               {"term()", 2, 42}
+             ]
+    end)
+  end
+
+  test "issue: repeated term on one type line gets distinct columns" do
+    """
+    defmodule Sample do
+      @type pair :: {term(), term()}
+    end
+    """
+    |> to_source_file()
+    |> run_check(NoAnyOrTermTypes)
+    |> assert_issues(fn issues ->
+      assert Enum.map(issues, &{&1.trigger, &1.line_no, &1.column}) == [
+               {"term()", 2, 18},
+               {"term()", 2, 26}
+             ]
+
+      [first, second] = issues
+      assert first.column != second.column
+    end)
+  end
+
   test "issue: any in a public type definition" do
     """
     defmodule Sample do
