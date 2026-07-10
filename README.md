@@ -64,7 +64,7 @@ with the *complementary* one, or project-specific data-shape smells like
 
 | Rule | Pattern flagged |
 |---|---|
-| `ForgeCredoChecks.NoAnyOrTermTypes` | `any()` / `term()` in `@spec`, `@callback`, `@macrocallback`, `@type`, `@typep`, and `@opaque` declarations |
+| `ForgeCredoChecks.NoAnyOrTermTypes` | `any()` / `term()` in `@spec`, `@callback`, `@macrocallback`, `@type`, `@typep`, and `@opaque` declarations. Each occurrence reports its own column, so several broad types on one line are distinct findings you can act on individually. |
 
 ### Official Elixir anti-patterns
 

@@ -119,7 +119,8 @@ defmodule ForgeCredoChecks.NoAnyOrTermTypes do
           "Dialyzer's protection. Replace it with a named type, struct, tagged " <>
           "tuple, union, or type variable that describes the real shape.",
       trigger: trigger,
-      line_no: meta[:line]
+      line_no: meta[:line],
+      column: meta[:column]
     )
   end
 end
