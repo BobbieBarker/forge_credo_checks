@@ -39,5 +39,6 @@ defmodule ForgeCredoChecks do
 
     * `ForgeCredoChecks.TaintedSourceInspection`: source-grep constructs applied to text read from non-test `.ex` / `.exs` files
     * `ForgeCredoChecks.TimingAndPrivateStateGuard`: `Process.sleep/1` and `:sys.replace_state/2` call nodes
+    * `ForgeCredoChecks.NoApplicationGetEnvInLib`: `Application.get_env/2,3` inside `lib/` (use `compile_env` or `fetch_env!` instead)
   """
 end
