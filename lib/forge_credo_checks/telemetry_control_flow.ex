@@ -14,8 +14,8 @@ defmodule ForgeCredoChecks.TelemetryControlFlow do
 
       `:telemetry` handlers are meant to observe events (emit metrics, record
       spans, log) without influencing the system they observe. When a handler
-      forwards a load-bearing signal to a process — `send/2` to a pid, a
-      `GenServer.call`/`cast`, or any application GenServer client API — the
+      forwards a load-bearing signal to a process -- `send/2` to a pid, a
+      `GenServer.call`/`cast`, or any application GenServer client API -- the
       telemetry bus silently becomes part of the control path. The failure mode
       is quiet: a raising handler is auto-detached by the telemetry runtime, so
       the behavior it drove simply stops with no error and no restart. The
@@ -23,35 +23,51 @@ defmodule ForgeCredoChecks.TelemetryControlFlow do
       `Phoenix.PubSub`.
 
       This check flags a `:telemetry.attach/4` or `:telemetry.attach_many/4`
-      whose handler argument is an inline anonymous function (`fn`) whose body
-      performs a control-flow side effect: `send/2`, `:erlang.send/2`,
-      `GenServer.call/2,3`, or `GenServer.cast/2`. Observation-only handlers
-      (metric emission, span recording, logging) are not flagged.
+      whose handler argument contains control-flow side effects: `send/2`,
+      `:erlang.send/2`, `GenServer.call/2,3`, or `GenServer.cast/2`.
+
+      Detection covers two forms:
+
+      1. **Inline anonymous functions** -- a `fn` literal passed directly as
+         the handler argument.
+      2. **Same-file function captures** -- `&func_name/arity` or
+         `&__MODULE__.func_name/arity` where the captured function is defined
+         in the same source file. The check resolves the function body and
+         inspects it for control-flow calls.
+
+      Observation-only handlers (metric emission, span recording, logging)
+      are not flagged regardless of form.
 
       ## Known limits
 
-      Detection is syntactic and scoped to **inline anonymous-function
-      handlers** — a `fn` literal passed directly as the handler argument.
-
-      * **Named MFA handlers are out of scope.** `:telemetry.attach/4` with an
-        `{Module, :function, config}` tuple names a handler in a different
-        module; the attach call site holds no body to inspect. Resolving the
-        referenced function's body requires cross-file/whole-program analysis,
-        which this repo's checks deliberately do not perform (see the
-        `PortProducerBoundary` "Known limits" precedent). Such handlers are
-        not flagged by this pass.
+      * **Named MFA-tuple handlers are out of scope.** `:telemetry.attach/4`
+        with a `{Module, :function, config}` tuple requires cross-file
+        analysis to resolve and is not flagged.
+      * **Cross-module captures** (`&OtherModule.func/arity` where
+        `OtherModule` is not defined in the same file) are not resolved.
       * A handler passed as a **bound variable** (`:telemetry.attach(name,
         event, handler_fn, config)`) likewise carries no body at the call site
         and is not flagged.
       * Aliased or imported control-flow calls (e.g. `alias GenServer, as: GS;
         GS.cast(...)`) are not resolved; detection matches the canonical
         `GenServer.*`, `send`, and `:erlang.send` forms.
+      * For same-file captures, if the function delegates to another function
+        that performs control flow, only direct control-flow calls in the
+        captured function's body are detected (no transitive resolution).
 
       ## Bad
 
           :telemetry.attach("governor", [:app, :dispatch], fn _, _, _, _ ->
             GenServer.cast(pid, :adjust_limit)
           end, nil)
+
+          # Same-file capture with control flow in the referenced function
+          :telemetry.attach("broker", [:budget, :release],
+            &__MODULE__.handle_release/4, nil)
+
+          defp handle_release(_event, _measures, %{pid: pid}, _config) do
+            send(pid, :budget_released)
+          end
 
       ## Good
 
@@ -71,7 +87,7 @@ defmodule ForgeCredoChecks.TelemetryControlFlow do
       onto `Phoenix.PubSub`:
 
           {ForgeCredoChecks.TelemetryControlFlow,
-           excluded_paths: [~r"^lib/legacy/telemetry_bridge\.ex$"]}
+           excluded_paths: [~r"^lib/legacy/telemetry_bridge\\.ex$"]}
 
       Credo's `# credo:disable-for-next-line` escape hatch is honored
       automatically; use it to suppress a single intentional exception:
@@ -94,7 +110,8 @@ defmodule ForgeCredoChecks.TelemetryControlFlow do
       []
     else
       issue_meta = IssueMeta.for(source_file, params)
-      Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta))
+      fn_defs = collect_function_defs(source_file)
+      Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta, fn_defs))
     end
   end
 
@@ -106,48 +123,105 @@ defmodule ForgeCredoChecks.TelemetryControlFlow do
 
   defp excluded_path?(_source_file, _params), do: false
 
-  # :telemetry.attach/4 or :telemetry.attach_many/4 with an inline fn handler.
-  # The handler is the 4th argument (index 3); it may be a bare `fn` or a
-  # `fn` wrapped by a `__block__`. We descend into the fn body and report any
-  # control-flow call found, attributing the issue to the attach call's line.
+  # --- First pass: collect function definitions by {name, arity} ---
+
+  defp collect_function_defs(source_file) do
+    source_file
+    |> Credo.Code.prewalk(&collect_def/2)
+    |> Enum.group_by(
+      fn {name, arity, _body} -> {name, arity} end,
+      fn {_name, _arity, body} -> body end
+    )
+  end
+
+  defp collect_def({def_type, _meta, [{:when, _, [{name, _, args} | _]}, body]} = ast, acc)
+       when def_type in [:def, :defp] and is_atom(name) and is_list(args) do
+    {ast, [{name, length(args), body} | acc]}
+  end
+
+  defp collect_def({def_type, _meta, [{name, _, args}, body]} = ast, acc)
+       when def_type in [:def, :defp] and is_atom(name) and is_list(args) do
+    {ast, [{name, length(args), body} | acc]}
+  end
+
+  defp collect_def(ast, acc), do: {ast, acc}
+
+  # --- Second pass: detect telemetry attaches with control-flow handlers ---
+
   defp traverse(
          {{:., dot_meta, [:telemetry, fun]}, call_meta, args} = ast,
          issues,
-         issue_meta
+         issue_meta,
+         fn_defs
        )
        when fun in @telemetry_attaches and is_list(args) do
-    case find_inline_handler(args) do
-      {:ok, fn_ast} ->
-        attach_line = Keyword.get(call_meta, :line, Keyword.get(dot_meta, :line))
-        new_issues = control_flow_issues(fn_ast, issue_meta, attach_line)
-        {ast, new_issues ++ issues}
+    attach_line = Keyword.get(call_meta, :line, Keyword.get(dot_meta, :line))
 
-      :none ->
-        {ast, issues}
+    new_issues =
+      case find_handler(args) do
+        {:inline, fn_ast} ->
+          control_flow_issues(fn_ast, issue_meta, attach_line)
+
+        {:capture, name, arity} ->
+          resolve_capture_issues(fn_defs, name, arity, issue_meta, attach_line)
+
+        :none ->
+          []
+      end
+
+    {ast, new_issues ++ issues}
+  end
+
+  defp traverse(ast, issues, _issue_meta, _fn_defs), do: {ast, issues}
+
+  # --- Handler detection ---
+
+  defp find_handler([_, _, handler | _]), do: classify_handler(handler)
+  defp find_handler(_args), do: :none
+
+  defp classify_handler({:fn, _, _} = fn_ast), do: {:inline, fn_ast}
+
+  # &func_name/arity (local capture)
+  defp classify_handler({:&, _, [{:/, _, [{name, _, ctx}, arity]}]})
+       when is_atom(name) and is_integer(arity) and (is_atom(ctx) or is_nil(ctx)) do
+    {:capture, name, arity}
+  end
+
+  # &__MODULE__.func_name/arity
+  defp classify_handler(
+         {:&, _, [{:/, _, [{{:., _, [{:__MODULE__, _, _}, name]}, _, []}, arity]}]}
+       )
+       when is_atom(name) and is_integer(arity) do
+    {:capture, name, arity}
+  end
+
+  defp classify_handler(_), do: :none
+
+  # --- Capture resolution ---
+
+  defp resolve_capture_issues(fn_defs, name, arity, issue_meta, attach_line) do
+    case Map.get(fn_defs, {name, arity}) do
+      nil ->
+        []
+
+      bodies ->
+        bodies
+        |> Enum.flat_map(&control_flow_issues(&1, issue_meta, attach_line))
+        |> Enum.uniq_by(fn issue -> {issue.trigger, issue.line_no} end)
     end
   end
 
-  defp traverse(ast, issues, _issue_meta), do: {ast, issues}
+  # --- Control-flow detection in a handler body ---
 
-  # The handler argument position is index 3 for both attach/4 and attach_many/4.
-  # A direct `fn` literal lands here as `{:fn, _, clauses}`. MFA tuples, bound
-  # variables, and any other form are out of scope (see "Known limits").
-  defp find_inline_handler([_, _, {:fn, _, _} = fn_ast | _]), do: {:ok, fn_ast}
-
-  defp find_inline_handler(_args), do: :none
-
-  defp control_flow_issues(fn_ast, issue_meta, attach_line) do
+  defp control_flow_issues(body_ast, issue_meta, attach_line) do
     {_ast, issues} =
-      Macro.prewalk(fn_ast, [], fn
-        # local send/2 (Kernel import)
+      Macro.prewalk(body_ast, [], fn
         {:send, meta, [_pid, _msg]} = ast, issues ->
           {ast, [issue_for(issue_meta, "send", attach_line, meta) | issues]}
 
-        # :erlang.send/2
         {{:., _, [:erlang, :send]}, meta, [_pid, _msg]} = ast, issues ->
           {ast, [issue_for(issue_meta, ":erlang.send", attach_line, meta) | issues]}
 
-        # GenServer.call / GenServer.cast
         {{:., _, [{:__aliases__, _, [:GenServer]}, fun]}, meta, _args} = ast, issues
         when fun in @genserver_calls ->
           {ast, [issue_for(issue_meta, "GenServer.#{fun}", attach_line, meta) | issues]}
