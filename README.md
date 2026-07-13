@@ -86,6 +86,7 @@ Boundary checks that enforce project structure rather than a language idiom.
 
 | Rule | Pattern flagged | Configurable |
 |---|---|---|
+| `ForgeCredoChecks.OneModulePerFile` | every literal `defmodule` after the first in a source file, including nested modules; quoted AST is ignored | `:excluded_paths` (defaults to test files) |
 | `ForgeCredoChecks.PortProducerBoundary` | external-model producers (subprocess/HTTP dispatch) defined outside a declared boundary module | boundary allow-lists |
 | `ForgeCredoChecks.NoSourceInspectionInTest` | tests that read or AST-parse `lib/*.ex` source (`File.read!` / `Code.string_to_quoted`, literal or carried as data) instead of exercising the real function | `:included_paths` |
 | `ForgeCredoChecks.TaintedSourceInspection` | `=~` / `String.contains?` / `Regex.*` / `Code.eval_string` applied to text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source | `:excluded_paths` |
@@ -168,6 +169,7 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.LargeStruct, []},
         {ForgeCredoChecks.UnsupervisedSpawn, []},
         {ForgeCredoChecks.NamespaceTrespassing, []},
+        {ForgeCredoChecks.OneModulePerFile, []},
         {ForgeCredoChecks.TaintedSourceInspection, []},
         {ForgeCredoChecks.TimingAndPrivateStateGuard, []},
         {ForgeCredoChecks.MultilineStringConcat, []}
