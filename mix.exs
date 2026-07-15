@@ -1,7 +1,7 @@
 defmodule ForgeCredoChecks.MixProject do
   use Mix.Project
 
-  @version "0.7.0"
+  @version "0.8.0"
   @source_url "https://github.com/BobbieBarker/forge_credo_checks"
 
   def project do
@@ -34,8 +34,9 @@ defmodule ForgeCredoChecks.MixProject do
   end
 
   defp description do
-    "Custom Credo checks targeting anti-patterns LLMs commonly generate " <>
-      "(filter |> map, map |> reject(is_nil), Map.get/2 || fallback, etc.)"
+    "Custom Credo checks targeting anti-patterns LLMs commonly generate: " <>
+      "wasteful Enum chains, with-macro misuse, broad typespecs, inline regex, " <>
+      "telemetry control flow, unsupervised spawns, and more."
   end
 
   defp package do
