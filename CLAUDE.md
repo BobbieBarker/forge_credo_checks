@@ -98,17 +98,11 @@ Write a failing test first, then implement until it passes. This applies to both
 ### Git
 - One commit per PR (squash before review)
 - Branch naming: `FGE-{number}` for tickets, `chore/description` for infrastructure
-- **Commit messages MUST include `Fixes FGE-{number}`** - this triggers Linear's GitHub integration to auto-transition tickets to Done on merge
-- **PR body MUST include `Fixes FGE-{number}`**
+- **Commit messages and PR bodies MUST include `Fixes FGE-{number}`** - this triggers Linear's GitHub integration to auto-transition tickets to Done on merge
 - Never force push to main
-- Before ANY push: `mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && MIX_ENV=dev mix dialyzer && mix test`
-- Fresh checkout from remote when starting work
 
 ## CI Pipeline
 
 CI runs on every PR: `mix test`, `mix format --check-formatted`, `mix credo --strict`, `mix dialyzer`, `mix compile --warnings-as-errors`, Codecov diff coverage.
 
-When fixing CI failures:
-- Do NOT modify files in `.github/workflows/`
-- Read the error logs carefully
-- Run `mix format` and `mix credo --strict` locally before pushing fixes
+When fixing CI failures, do NOT modify files in `.github/workflows/`.
