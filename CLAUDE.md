@@ -103,6 +103,10 @@ Write a failing test first, then implement until it passes. This applies to both
 
 ## CI Pipeline
 
-CI runs on every PR: `mix test`, `mix format --check-formatted`, `mix credo --strict`, `mix dialyzer`, `mix compile --warnings-as-errors`, Codecov diff coverage.
+CI runs `mix compile --warnings-as-errors`, `mix credo --strict`, and `mix test`
+against Elixir 1.18 / OTP 27 and Elixir 1.20 / OTP 28. Formatting is checked on
+Elixir 1.20, and a separate job requires a changelog entry when `lib/` changes.
+The full local gate also runs Dialyzer; GitHub Actions does not currently run
+Dialyzer or upload coverage.
 
 When fixing CI failures, do NOT modify files in `.github/workflows/`.
