@@ -90,7 +90,7 @@ Boundary checks that enforce project structure rather than a language idiom.
 | `ForgeCredoChecks.PortProducerBoundary` | external-model producers (subprocess/HTTP dispatch) defined outside a declared boundary module | boundary allow-lists |
 | `ForgeCredoChecks.NoSourceInspectionInTest` | tests that read or AST-parse `lib/*.ex` source (`File.read!` / `Code.string_to_quoted`, literal or carried as data) instead of exercising the real function | `:included_paths` |
 | `ForgeCredoChecks.NoTelemetryAssertionsInTest` | tests that attach telemetry handlers or assert on telemetry events instead of behavioral outcomes | `:telemetry_event_roots` (defaults to six event roots) |
-| `ForgeCredoChecks.NoGlobalPubSubWildcardRefute` | wildcard payloads in negative assertions for globally subscribed PubSub events | no |
+| `ForgeCredoChecks.NoGlobalPubSubWildcardRefute` | wildcard payloads in negative assertions for globally subscribed PubSub events | `:global_subscriptions` (declare your project's subscribe functions and the tags they deliver) |
 | `ForgeCredoChecks.NoDetsInfoOpenGuard` | `:dets.info/1` compared with `:undefined` as a stale guard around `:dets.open_file/2` | no |
 | `ForgeCredoChecks.TaintedSourceInspection` | `=~` / `String.contains?` / `Regex.*` / `Code.eval_string` applied to text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source | `:excluded_paths` |
 | `ForgeCredoChecks.TimingAndPrivateStateGuard` | actual `Process.sleep/1`, `:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes, including piped `:sys.get_state` forms; string, atom, comment, and capture mentions are not flagged | `:excluded_paths` |
@@ -175,7 +175,8 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.OneModulePerFile, []},
         {ForgeCredoChecks.NoTelemetryAssertionsInTest,
          telemetry_event_roots: [:my_app, :my_library]},
-        {ForgeCredoChecks.NoGlobalPubSubWildcardRefute, []},
+        {ForgeCredoChecks.NoGlobalPubSubWildcardRefute,
+         global_subscriptions: [subscribe_orders: [:order_placed, :order_cancelled]]},
         {ForgeCredoChecks.NoDetsInfoOpenGuard, []},
         {ForgeCredoChecks.TaintedSourceInspection, []},
         {ForgeCredoChecks.TimingAndPrivateStateGuard, []},

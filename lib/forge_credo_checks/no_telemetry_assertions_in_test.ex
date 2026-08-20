@@ -1,11 +1,4 @@
 defmodule ForgeCredoChecks.NoTelemetryAssertionsInTest do
-  @moduledoc """
-  Rejects project tests that treat telemetry instrumentation as a behavioral contract.
-
-  The check is deliberately limited to test files. Production telemetry
-  attachment and emission remain valid observability code.
-  """
-
   use Credo.Check,
     base_priority: :high,
     category: :warning,
@@ -21,16 +14,81 @@ defmodule ForgeCredoChecks.NoTelemetryAssertionsInTest do
     ],
     explanations: [
       check: """
-      Tests must assert the state change, persisted record, cache write, or
-      Phoenix.PubSub domain event produced by behavior, not its telemetry.
+      Assert the behaviour, not the instrumentation that observes it.
+
+      ## Why
+
+      A telemetry event is an observability signal, not a contract. Asserting
+      on one couples the test to the event name, the measurement map, and the
+      metadata shape — all of which are meant to be free to change — while
+      proving nothing about whether the work actually happened. An emit with a
+      broken write behind it passes such a test.
+
+      Telemetry is also the wrong delivery mechanism for a test signal: a
+      handler that raises is detached by `:telemetry` permanently and silently,
+      so the test that depended on it starts passing vacuously. When behaviour
+      genuinely needs to notify another process, the mechanism is
+      `Phoenix.PubSub`, and that domain event is what the test should assert.
+
+      ## The fix is not deletion
+
+      Deleting the test, deleting the `:telemetry.attach` call, or deleting the
+      assertion silences this check and removes the coverage. The attachment
+      and the assertions below it are one unit: replace the whole telemetry
+      round-trip with an assertion on the observable outcome the behaviour
+      produces.
+
+      ## Bad
+
+          :telemetry.attach(
+            "test-order-placed",
+            [:my_app, :order, :placed],
+            fn event, measurements, metadata, _config ->
+              send(self(), {:telemetry, event, measurements, metadata})
+            end,
+            nil
+          )
+
+          assert {:ok, _order} = Orders.place(params)
+          assert_receive {:telemetry, [:my_app, :order, :placed], %{}, %{id: id}}
+
+      ## Good
+
+          # Assert the persisted record and the domain event the behaviour
+          # actually produces. No attachment, no handler, nothing to detach.
+          Orders.subscribe(order_id)
+
+          assert {:ok, %Order{id: id}} = Orders.place(params)
+          assert %Order{status: :placed, total: 1_200} = Repo.get!(Order, id)
+          assert_receive {:order_placed, ^order_id}
+
+      If the behaviour has no observable outcome other than its telemetry, that
+      is the finding: give it one. Return the value, persist the record, or
+      broadcast a `Phoenix.PubSub` domain event, then assert on that.
+
+      ## What is flagged
+
+      In test files only:
+
+        * `:telemetry.attach/4`, `:telemetry.attach_many/4`, and
+          `:telemetry_test.attach_event_handlers/2`;
+        * `assert_receive`, `assert_received`, and `refute_receive` whose
+          message contains a tuple tagged `:telemetry` or `:telemetry_event`,
+          or one whose leading element is an event-name list beginning with a
+          root in `telemetry_event_roots`.
+
+      Production telemetry attachment and emission are untouched — the check
+      never runs outside test files.
 
       ## Configuration
 
-      `telemetry_event_roots` lists the first atom in project telemetry event
-      names represented as lists. Configure every event root emitted by the
-      project so assertions against those events are rejected. Tuple events
-      tagged `:telemetry` or `:telemetry_event` are always rejected regardless
-      of this parameter.
+      `telemetry_event_roots` lists the first atom of each project telemetry
+      event name. Declare every root the project emits so assertions against
+      those events are rejected; tuples tagged `:telemetry` or
+      `:telemetry_event` are rejected regardless of this parameter.
+
+          {ForgeCredoChecks.NoTelemetryAssertionsInTest,
+           telemetry_event_roots: [:my_app, :my_library]}
       """,
       params: [
         telemetry_event_roots: "First atoms identifying project telemetry event-name lists."
@@ -112,15 +170,29 @@ defmodule ForgeCredoChecks.NoTelemetryAssertionsInTest do
   end
 
   defp issue_for(issue_meta, trigger, line_no) do
-    message = """
-    Telemetry is observability, not a test contract. Assert the resulting state \
-    change or Phoenix.PubSub domain event instead.
-    """
-
     format_issue(issue_meta,
-      message: message,
+      message: message_for(trigger),
       trigger: trigger,
       line_no: line_no
     )
+  end
+
+  defp message_for("assert" <> _rest = trigger), do: assertion_message(trigger)
+  defp message_for("refute" <> _rest = trigger), do: assertion_message(trigger)
+  defp message_for(trigger), do: attach_message(trigger)
+
+  defp assertion_message(trigger) do
+    "`#{trigger}` on a telemetry event asserts that instrumentation fired, not that the " <>
+      "behaviour happened. Assert the state change, persisted record, cache write, or " <>
+      "Phoenix.PubSub domain event it produces instead. Deleting the assertion is not the fix; " <>
+      "if the behaviour has no observable outcome besides telemetry, give it one."
+  end
+
+  defp attach_message(trigger) do
+    "`#{trigger}` wires this test to observability instrumentation rather than behaviour, and a " <>
+      "handler that raises is detached permanently and silently, so the test then passes " <>
+      "vacuously. Deleting this attachment and orphaning the assertions below it is not the " <>
+      "fix: replace the whole telemetry round-trip with an assertion on the state change, " <>
+      "persisted record, or Phoenix.PubSub domain event the behaviour produces."
   end
 end

@@ -18,10 +18,10 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuardTest do
       |> List.first()
 
     assert issue.message =~ "`Process.sleep`"
-    assert issue.message =~ "contracts/template_variables_contract_test.exs"
-    assert issue.message =~ "string"
-    assert issue.message =~ "atom"
+    assert issue.message =~ "assert_receive"
+    assert issue.message =~ "Process.monitor"
     assert issue.message =~ ":excluded_paths"
+    refute issue.message =~ "contracts/template_variables_contract_test.exs"
   end
 
   test "issue: :sys.replace_state/2 call node" do
@@ -39,7 +39,10 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuardTest do
       |> List.first()
 
     assert issue.message =~ "`:sys.replace_state`"
-    assert issue.message =~ "contracts/template_variables_contract_test.exs"
+    assert issue.message =~ "assert_receive"
+    assert issue.message =~ "documented accessor"
+    assert issue.message =~ "__test_state__"
+    refute issue.message =~ "contracts/template_variables_contract_test.exs"
   end
 
   test "issue: :sys.get_state call nodes at direct and piped AST arities" do
@@ -68,7 +71,8 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuardTest do
            ]
 
     assert Enum.all?(issues, &(&1.message =~ "`:sys.get_state`"))
-    assert Enum.all?(issues, &(&1.message =~ "contracts/template_variables_contract_test.exs"))
+    assert Enum.all?(issues, &(&1.message =~ "__test_state__"))
+    refute Enum.any?(issues, &(&1.message =~ "contracts/"))
   end
 
   test "no issue: string, atom, and comment mentions are not call nodes" do
