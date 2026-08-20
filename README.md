@@ -93,7 +93,7 @@ Boundary checks that enforce project structure rather than a language idiom.
 | `ForgeCredoChecks.NoGlobalPubSubWildcardRefute` | wildcard payloads in negative assertions for globally subscribed PubSub events | no |
 | `ForgeCredoChecks.NoDetsInfoOpenGuard` | `:dets.info/1` compared with `:undefined` as a stale guard around `:dets.open_file/2` | no |
 | `ForgeCredoChecks.TaintedSourceInspection` | `=~` / `String.contains?` / `Regex.*` / `Code.eval_string` applied to text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source | `:excluded_paths` |
-| `ForgeCredoChecks.TimingAndPrivateStateGuard` | actual `Process.sleep/1` and `:sys.replace_state/2` call nodes; string and atom mentions are not flagged | `:excluded_paths` |
+| `ForgeCredoChecks.TimingAndPrivateStateGuard` | actual `Process.sleep/1`, `:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes, including piped `:sys.get_state` forms; string, atom, comment, and capture mentions are not flagged | `:excluded_paths` |
 
 The two-pass `Enum` chains walk the input twice and allocate intermediate
 lists; a comprehension does both in one pass and preserves order naturally.

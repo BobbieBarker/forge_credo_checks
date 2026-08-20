@@ -1,6 +1,7 @@
 defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
   @moduledoc """
-  Flags timing sleeps and private GenServer state mutation in tests and checks.
+  Flags timing sleeps and private GenServer state inspection or mutation in
+  tests and checks.
   """
 
   use Credo.Check,
@@ -9,13 +10,16 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
     param_defaults: [excluded_paths: []],
     explanations: [
       check: """
-      Timing sleeps and private process-state mutation hide the real contract.
+      Timing sleeps and private process-state access hide the real contract.
 
       ## Why
 
       `Process.sleep/1` makes tests depend on scheduler timing instead of a
       deterministic signal. `:sys.replace_state/2` reaches into a process and
       mutates implementation details rather than exercising the public API.
+      `:sys.get_state/1,2` exposes the same private implementation details to
+      assertions and does not synchronize independent senders, timers, or
+      asynchronous task replies.
 
       Use behavioural contract coverage instead. The reference pattern for the
       Forge/Anubis migration lives in `contracts/template_variables_contract_test.exs`.
@@ -23,8 +27,9 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
       ## What is flagged
 
       This check flags actual remote call nodes for `Process.sleep/1` and
-      `:sys.replace_state/2`. String literals, atom literals, and function
-      captures that merely mention those names are not flagged.
+      `:sys.replace_state/2`, plus `:sys.get_state/1,2` and its piped AST forms
+      at arities zero and one. String literals, atom literals, comments, and
+      function captures that merely mention those names are not flagged.
 
       ## Configuration
 
@@ -88,14 +93,25 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
     {ast, [issue_for(issue_meta, ":sys.replace_state", meta) | issues]}
   end
 
+  defp traverse(
+         {{:., _dot_meta, [:sys, :get_state]}, meta, args} = ast,
+         issues,
+         issue_meta
+       )
+       when is_list(args) and length(args) in 0..2 do
+    {ast, [issue_for(issue_meta, ":sys.get_state", meta) | issues]}
+  end
+
   defp traverse(ast, issues, _issue_meta), do: {ast, issues}
 
   defp issue_for(issue_meta, trigger, meta) do
     format_issue(issue_meta,
       message:
-        "`#{trigger}` bypasses the public contract. Replace timing/private-state " <>
-          "assertions with behavioural coverage in `#{@contract_path}`; string " <>
-          "and atom mentions are allowed, but call nodes are not. Use " <>
+        "`#{trigger}` bypasses the public contract. `Process.sleep/1`, " <>
+          "`:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes are " <>
+          "prohibited. Replace timing/private-state access with behavioural " <>
+          "coverage in `#{@contract_path}`; string, atom, comment, and capture " <>
+          "mentions are allowed, but call nodes are not. Use " <>
           "`:excluded_paths` only as a shrinking migration bridge.",
       trigger: trigger,
       line_no: Keyword.get(meta, :line)

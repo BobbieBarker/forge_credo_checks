@@ -43,7 +43,7 @@ defmodule ForgeCredoChecks do
     * `ForgeCredoChecks.NoGlobalPubSubWildcardRefute`: wildcard negative assertions for globally subscribed PubSub events
     * `ForgeCredoChecks.NoDetsInfoOpenGuard`: `:dets.info/1` checks used to gate `:dets.open_file/2`
     * `ForgeCredoChecks.TaintedSourceInspection`: source-grep constructs applied to text read from non-test `.ex` / `.exs` files
-    * `ForgeCredoChecks.TimingAndPrivateStateGuard`: `Process.sleep/1` and `:sys.replace_state/2` call nodes
+    * `ForgeCredoChecks.TimingAndPrivateStateGuard`: `Process.sleep/1`, `:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes
     * `ForgeCredoChecks.NoApplicationGetEnvInLib`: `Application.get_env/2,3` inside `lib/` (use `compile_env` or `fetch_env!` instead)
     * `ForgeCredoChecks.TelemetryControlFlow`: `:telemetry.attach`/`attach_many` with an inline handler that performs control flow (`send`, `GenServer.call`/`cast`) instead of observation-only recording
   """
