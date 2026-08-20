@@ -89,6 +89,9 @@ Boundary checks that enforce project structure rather than a language idiom.
 | `ForgeCredoChecks.OneModulePerFile` | every literal `defmodule` after the first in a source file, including nested modules; quoted AST is ignored | `:excluded_paths` (defaults to test files) |
 | `ForgeCredoChecks.PortProducerBoundary` | external-model producers (subprocess/HTTP dispatch) defined outside a declared boundary module | boundary allow-lists |
 | `ForgeCredoChecks.NoSourceInspectionInTest` | tests that read or AST-parse `lib/*.ex` source (`File.read!` / `Code.string_to_quoted`, literal or carried as data) instead of exercising the real function | `:included_paths` |
+| `ForgeCredoChecks.NoTelemetryAssertionsInTest` | tests that attach telemetry handlers or assert on telemetry events instead of behavioral outcomes | `:telemetry_event_roots` (defaults to six event roots) |
+| `ForgeCredoChecks.NoGlobalPubSubWildcardRefute` | wildcard payloads in negative assertions for globally subscribed PubSub events | no |
+| `ForgeCredoChecks.NoDetsInfoOpenGuard` | `:dets.info/1` compared with `:undefined` as a stale guard around `:dets.open_file/2` | no |
 | `ForgeCredoChecks.TaintedSourceInspection` | `=~` / `String.contains?` / `Regex.*` / `Code.eval_string` applied to text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source | `:excluded_paths` |
 | `ForgeCredoChecks.TimingAndPrivateStateGuard` | actual `Process.sleep/1` and `:sys.replace_state/2` call nodes; string and atom mentions are not flagged | `:excluded_paths` |
 
@@ -170,6 +173,10 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.UnsupervisedSpawn, []},
         {ForgeCredoChecks.NamespaceTrespassing, []},
         {ForgeCredoChecks.OneModulePerFile, []},
+        {ForgeCredoChecks.NoTelemetryAssertionsInTest,
+         telemetry_event_roots: [:my_app, :my_library]},
+        {ForgeCredoChecks.NoGlobalPubSubWildcardRefute, []},
+        {ForgeCredoChecks.NoDetsInfoOpenGuard, []},
         {ForgeCredoChecks.TaintedSourceInspection, []},
         {ForgeCredoChecks.TimingAndPrivateStateGuard, []},
         {ForgeCredoChecks.MultilineStringConcat, []}
