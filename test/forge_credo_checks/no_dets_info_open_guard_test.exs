@@ -44,6 +44,99 @@ defmodule ForgeCredoChecks.NoDetsInfoOpenGuardTest do
     assert issue.trigger === ":dets.info/1"
   end
 
+  test "flags a comparison against a variable bound to the info call" do
+    source = """
+    defmodule Example do
+      def open(table) do
+        info = :dets.info(table)
+
+        if info !== :undefined, do: {:ok, table}, else: :dets.open_file(table, [])
+      end
+    end
+    """
+
+    assert [issue] = execute_check(source)
+    assert issue.trigger === ":dets.info/1"
+  end
+
+  test "flags a case on a variable bound to the info call" do
+    source = """
+    defmodule Example do
+      def open(table) do
+        info = :dets.info(table)
+
+        case info do
+          :undefined -> :dets.open_file(table, [])
+          _ -> {:ok, table}
+        end
+      end
+    end
+    """
+
+    assert [issue] = execute_check(source)
+    assert issue.trigger === ":dets.info/1"
+  end
+
+  test "allows a variable bound to an arity-two info call" do
+    source = """
+    defmodule Example do
+      def size(table) do
+        size = :dets.info(table, :size)
+
+        size !== :undefined
+      end
+    end
+    """
+
+    assert [] = execute_check(source)
+  end
+
+  test "allows a variable bound to the info call and compared against another value" do
+    source = """
+    defmodule Example do
+      def open(table) do
+        info = :dets.info(table)
+
+        info !== :open
+      end
+    end
+    """
+
+    assert [] = execute_check(source)
+  end
+
+  test "allows a rebound variable whose second value is not an info call" do
+    source = """
+    defmodule Example do
+      def open(table, fallback) do
+        info = :dets.info(table)
+        info = fallback
+
+        info !== :undefined
+      end
+    end
+    """
+
+    assert [] = execute_check(source)
+  end
+
+  test "does not carry a binding into a sibling function body" do
+    source = """
+    defmodule Example do
+      def open(table) do
+        info = :dets.info(table)
+        {:ok, info}
+      end
+
+      def stale?(info) do
+        info !== :undefined
+      end
+    end
+    """
+
+    assert [] = execute_check(source)
+  end
+
   test "allows arity-two info calls and non-undefined comparisons" do
     source = """
     defmodule Example do
