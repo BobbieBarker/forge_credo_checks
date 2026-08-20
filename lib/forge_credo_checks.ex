@@ -39,6 +39,9 @@ defmodule ForgeCredoChecks do
   ## Architecture and test discipline
 
     * `ForgeCredoChecks.OneModulePerFile`: every `defmodule` after the first in a source file (test files excluded by default)
+    * `ForgeCredoChecks.NoTelemetryAssertionsInTest`: telemetry attachment calls and telemetry-event assertions in tests
+    * `ForgeCredoChecks.NoGlobalPubSubWildcardRefute`: wildcard negative assertions for globally subscribed PubSub events
+    * `ForgeCredoChecks.NoDetsInfoOpenGuard`: `:dets.info/1` checks used to gate `:dets.open_file/2`
     * `ForgeCredoChecks.TaintedSourceInspection`: source-grep constructs applied to text read from non-test `.ex` / `.exs` files
     * `ForgeCredoChecks.TimingAndPrivateStateGuard`: `Process.sleep/1` and `:sys.replace_state/2` call nodes
     * `ForgeCredoChecks.NoApplicationGetEnvInLib`: `Application.get_env/2,3` inside `lib/` (use `compile_env` or `fetch_env!` instead)
