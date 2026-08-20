@@ -8,6 +8,10 @@
 - `ForgeCredoChecks.NoGlobalPubSubWildcardRefute`: flags wildcard negative assertions for events delivered through global PubSub subscriptions, where unrelated async producers can invalidate the assertion.
 - `ForgeCredoChecks.NoDetsInfoOpenGuard`: flags `:dets.info/1` comparisons with `:undefined` that gate `:dets.open_file/2`, because the registry read does not register the caller as a DETS user.
 
+### Changed
+
+- `ForgeCredoChecks.NoSourceInspectionInTest`: directs callers to reshape the public API by splitting a function or exposing the tested concept intentionally, rather than exporting a private implementation detail solely for tests.
+
 ## 0.8.0 - 2026-07-14
 
 ### Added

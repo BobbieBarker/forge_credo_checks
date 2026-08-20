@@ -21,10 +21,10 @@ defmodule ForgeCredoChecks.NoSourceInspectionInTest do
 
       Test the real contract instead. Call the producer to get each output shape,
       call the consumer with each shape, and assert the returned value or effect.
-      If the code under test is private, make it public (a `@doc false` function
-      is fine) or extract a reactor closure into a named public function.
-      Exposing a function to test critical behaviour is always preferable to
-      asserting on source text.
+      If critical behaviour is trapped behind a private helper, reshape the public
+      API at the concept boundary: split the public function so the concept can be
+      called directly, or expose the concept as an intentional, documented part of
+      the API. Do not export an implementation detail solely for a test.
 
       ## Bad
 
@@ -179,8 +179,9 @@ defmodule ForgeCredoChecks.NoSourceInspectionInTest do
   defp reader_issue(issue_meta, meta, trigger) do
     format_issue(issue_meta,
       message:
-        "`#{trigger}` reads production source in a test. Verify behaviour by calling the real " <>
-          "function (make it public if needed), not by inspecting source text.",
+        "`#{trigger}` reads production source in a test. Reshape the public API: split the " <>
+          "function or expose the concept, then verify behaviour by calling it instead of " <>
+          "inspecting source text.",
       trigger: trigger,
       line_no: Keyword.get(meta, :line)
     )

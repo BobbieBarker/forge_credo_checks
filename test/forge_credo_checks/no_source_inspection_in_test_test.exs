@@ -26,6 +26,22 @@ defmodule ForgeCredoChecks.NoSourceInspectionInTestTest do
     |> assert_issue()
   end
 
+  test "issue guidance reshapes the public API instead of exporting a private helper" do
+    """
+    defmodule FooTest do
+      def check, do: File.read!("lib/forge_symphony/foo.ex") =~ "bar"
+    end
+    """
+    |> to_source_file("test/forge_symphony/foo_test.exs")
+    |> run_check(NoSourceInspectionInTest)
+    |> assert_issue(fn issue ->
+      assert issue.message =~ "Reshape the public API"
+      assert issue.message =~ "split the function or expose the concept"
+      refute issue.message =~ "make it public"
+      refute issue.message =~ "@doc false"
+    end)
+  end
+
   test "issue: Code.string_to_quoted! of a lib source path" do
     """
     defmodule FooTest do
