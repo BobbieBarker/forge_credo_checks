@@ -38,6 +38,10 @@ defmodule ForgeCredoChecks.NoDetsInfoOpenGuard do
             _ -> {:ok, table}
           end
 
+          # Binding the result first changes nothing. Also flagged.
+          info = :dets.info(table)
+          if info === :undefined, do: :dets.open_file(table, opts), else: {:ok, table}
+
       ## Good
 
           # Open unconditionally and treat an already-open table as success.
@@ -58,6 +62,11 @@ defmodule ForgeCredoChecks.NoDetsInfoOpenGuard do
       against `:undefined`: as an operand of `===`, `!==`, `==`, or `!=` in
       either position, or as a `case` subject with an `:undefined` clause.
 
+      A variable bound exactly once to `:dets.info/1` in the enclosing function
+      body counts as the call itself, so lifting the call into a binding does
+      not evade the check. A name assigned more than once is not tracked, and a
+      binding never leaks into a sibling function body.
+
       ## Not flagged
 
         * `:dets.info(table, :size)` and other arity-2 calls — legitimate
@@ -76,7 +85,11 @@ defmodule ForgeCredoChecks.NoDetsInfoOpenGuard do
   def run(%{filename: filename} = source_file, params \\ []) do
     if lib_file?(filename) do
       issue_meta = IssueMeta.for(source_file, params)
-      Code.prewalk(source_file, &traverse(&1, &2, issue_meta))
+
+      {issues, _bindings} =
+        Code.prewalk(source_file, &traverse(&1, &2, issue_meta), {[], MapSet.new()})
+
+      issues
     else
       []
     end
@@ -90,28 +103,72 @@ defmodule ForgeCredoChecks.NoDetsInfoOpenGuard do
 
   defp lib_file?(_filename), do: false
 
-  defp traverse({:case, meta, [subject, [do: clauses]]} = ast, issues, issue_meta) do
-    if arity1_dets_info?(subject) and case_matches_undefined?(clauses) do
-      {ast, [issue_for(issue_meta, ":dets.info/1", Keyword.get(meta, :line)) | issues]}
+  # A function body opens a fresh binding scope: the names it binds to an
+  # `:dets.info/1` result are meaningful only inside it, and must not leak into
+  # a sibling clause that happens to reuse the name.
+  defp traverse({def_kind, _meta, [_head, body]} = ast, {issues, _bindings}, _issue_meta)
+       when def_kind in [:def, :defp] and is_list(body) do
+    {ast, {issues, info_bindings(body)}}
+  end
+
+  defp traverse(
+         {:case, meta, [subject, [do: clauses]]} = ast,
+         {issues, bindings} = acc,
+         issue_meta
+       ) do
+    if info_expression?(subject, bindings) and case_matches_undefined?(clauses) do
+      {ast,
+       {[issue_for(issue_meta, ":dets.info/1", Keyword.get(meta, :line)) | issues], bindings}}
     else
-      {ast, issues}
+      {ast, acc}
     end
   end
 
-  defp traverse({op, meta, [left, right]} = ast, issues, issue_meta)
+  defp traverse({op, meta, [left, right]} = ast, {issues, bindings} = acc, issue_meta)
        when op in @comparison_ops do
-    if open_guard?(left, right) or open_guard?(right, left) do
-      {ast, [issue_for(issue_meta, ":dets.info/1", Keyword.get(meta, :line)) | issues]}
+    if open_guard?(left, right, bindings) or open_guard?(right, left, bindings) do
+      {ast,
+       {[issue_for(issue_meta, ":dets.info/1", Keyword.get(meta, :line)) | issues], bindings}}
     else
-      {ast, issues}
+      {ast, acc}
     end
   end
 
-  defp traverse(ast, issues, _issue_meta), do: {ast, issues}
+  defp traverse(ast, acc, _issue_meta), do: {ast, acc}
 
-  defp open_guard?(info_side, other_side) do
-    arity1_dets_info?(info_side) and undefined_literal?(other_side)
+  defp open_guard?(info_side, other_side, bindings) do
+    info_expression?(info_side, bindings) and undefined_literal?(other_side)
   end
+
+  # Either the `:dets.info/1` call itself, or a variable standing in for it.
+  # Binding the result first is the most natural edit an agent makes when told
+  # the comparison is the problem, and it changes nothing about the hazard.
+  defp info_expression?(ast, bindings) do
+    arity1_dets_info?(ast) or bound_info_variable?(ast, bindings)
+  end
+
+  defp bound_info_variable?({name, _meta, context}, bindings)
+       when is_atom(name) and is_atom(context) do
+    MapSet.member?(bindings, name)
+  end
+
+  defp bound_info_variable?(_ast, _bindings), do: false
+
+  # Names this body binds exactly once, to an arity-1 `:dets.info/1` call. A
+  # name assigned more than once is dropped: the later value is something else,
+  # and the check has no flow analysis to tell which one a comparison sees.
+  defp info_bindings(body) do
+    {_body, assignments} = Macro.prewalk(body, %{}, &collect_assignment/2)
+
+    for {name, [value]} <- assignments, arity1_dets_info?(value), into: MapSet.new(), do: name
+  end
+
+  defp collect_assignment({:=, _meta, [{name, _var_meta, context}, value]} = ast, assignments)
+       when is_atom(name) and is_atom(context) do
+    {ast, Map.update(assignments, name, [value], &[value | &1])}
+  end
+
+  defp collect_assignment(ast, assignments), do: {ast, assignments}
 
   defp case_matches_undefined?(clauses) do
     Enum.any?(clauses, &undefined_case_clause?/1)

@@ -75,6 +75,76 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuardTest do
     refute Enum.any?(issues, &(&1.message =~ "contracts/"))
   end
 
+  test "issue: :timer.sleep/1 call nodes at direct and piped AST arities" do
+    issues =
+      """
+      defmodule TimerSleepTest do
+        def wait do
+          :timer.sleep(100)
+          200 |> :timer.sleep()
+        end
+      end
+      """
+      |> to_source_file("test/anubis/timer_sleep_test.exs")
+      |> run_check(TimingAndPrivateStateGuard)
+
+    assert Enum.map(issues, &{&1.trigger, &1.line_no}) == [
+             {":timer.sleep", 4},
+             {":timer.sleep", 3}
+           ]
+
+    assert Enum.all?(issues, &(&1.message =~ "Process.monitor"))
+  end
+
+  test "issue: guarded calls routed through apply/3" do
+    issues =
+      """
+      defmodule AppliedTest do
+        def reach(pid, fun) do
+          apply(:sys, :get_state, [pid])
+          apply(:sys, :replace_state, [pid, fun])
+          apply(:timer, :sleep, [100])
+          apply(Process, :sleep, [100])
+        end
+      end
+      """
+      |> to_source_file("test/anubis/applied_test.exs")
+      |> run_check(TimingAndPrivateStateGuard)
+
+    assert Enum.map(issues, &{&1.trigger, &1.line_no}) == [
+             {"Process.sleep", 6},
+             {":timer.sleep", 5},
+             {":sys.replace_state", 4},
+             {":sys.get_state", 3}
+           ]
+  end
+
+  test "no issue: apply/3 to an unrelated module" do
+    """
+    defmodule UnrelatedApplyTest do
+      def reach(pid) do
+        apply(MyApp.Worker, :get_state, [pid])
+      end
+    end
+    """
+    |> to_source_file("test/anubis/unrelated_apply_test.exs")
+    |> run_check(TimingAndPrivateStateGuard)
+    |> refute_issues()
+  end
+
+  test "no issue: a :timer.sleep capture is a mention, not a call" do
+    """
+    defmodule TimerCaptureTest do
+      def callbacks do
+        {&:timer.sleep/1}
+      end
+    end
+    """
+    |> to_source_file("test/anubis/timer_capture_test.exs")
+    |> run_check(TimingAndPrivateStateGuard)
+    |> refute_issues()
+  end
+
   test "no issue: string, atom, and comment mentions are not call nodes" do
     """
     defmodule LiteralMentionTest do

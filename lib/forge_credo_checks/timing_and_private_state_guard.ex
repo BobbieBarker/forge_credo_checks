@@ -10,7 +10,8 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
 
       ## Why
 
-      `Process.sleep/1` makes the test depend on scheduler timing. It is either
+      `Process.sleep/1` (and `:timer.sleep/1`, the same function under another
+      name) makes the test depend on scheduler timing. It is either
       too short (flaky on a loaded CI box) or too long (everyone pays the wall
       clock), and it never actually proves the awaited work finished — it only
       proves time passed.
@@ -56,10 +57,16 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
 
       ## What is flagged
 
-      Call nodes for `Process.sleep/1`, `:sys.get_state/1,2`, and
-      `:sys.replace_state/2`, including piped forms. Mentions that are not
-      calls — strings, atoms, comments, and function captures like
-      `&:sys.get_state/1` — are left alone.
+      Call nodes for `Process.sleep/1`, `:timer.sleep/1`, `:sys.get_state/1,2`,
+      and `:sys.replace_state/2`, including piped forms and the `apply/3` form
+      (`apply(:sys, :get_state, [pid])`). Mentions that are not calls —
+      strings, atoms, comments, and function captures like `&:sys.get_state/1`
+      — are left alone.
+
+      A test-only `GenServer.call(pid, :__test_state__)` is deliberately *not*
+      detected: there is no reliable AST signature separating it from a genuine
+      domain message, so any heuristic would both miss renamed variants and
+      flag legitimate calls. It is ruled out in prose above instead.
 
       ## Configuration
 
@@ -131,6 +138,34 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
     {ast, [issue_for(issue_meta, ":sys.get_state", meta) | issues]}
   end
 
+  # `:timer.sleep/1` is `Process.sleep/1` under another name. Arity zero is the
+  # piped form, where the duration sits outside the call node.
+  defp traverse({{:., _dot_meta, [:timer, :sleep]}, meta, args} = ast, issues, issue_meta)
+       when is_list(args) and length(args) in 0..1 do
+    {ast, [issue_for(issue_meta, ":timer.sleep", meta) | issues]}
+  end
+
+  # `apply/3` reaches the same functions through a runtime dispatch, which the
+  # remote-call clauses above cannot see.
+  defp traverse({:apply, meta, [:sys, function, args]} = ast, issues, issue_meta)
+       when function in [:get_state, :replace_state] and is_list(args) do
+    {ast, [issue_for(issue_meta, ":sys.#{function}", meta) | issues]}
+  end
+
+  defp traverse({:apply, meta, [:timer, :sleep, args]} = ast, issues, issue_meta)
+       when is_list(args) do
+    {ast, [issue_for(issue_meta, ":timer.sleep", meta) | issues]}
+  end
+
+  defp traverse(
+         {:apply, meta, [{:__aliases__, _alias_meta, [:Process]}, :sleep, args]} = ast,
+         issues,
+         issue_meta
+       )
+       when is_list(args) do
+    {ast, [issue_for(issue_meta, "Process.sleep", meta) | issues]}
+  end
+
   defp traverse(ast, issues, _issue_meta), do: {ast, issues}
 
   defp issue_for(issue_meta, trigger, meta) do
@@ -141,7 +176,9 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
     )
   end
 
-  defp message_for("Process.sleep" = trigger), do: sleep_message(trigger)
+  defp message_for(trigger) when trigger in ["Process.sleep", ":timer.sleep"],
+    do: sleep_message(trigger)
+
   defp message_for(trigger), do: private_state_message(trigger)
 
   defp sleep_message(trigger) do
