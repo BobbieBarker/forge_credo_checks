@@ -11,6 +11,7 @@
 ### Changed
 
 - `ForgeCredoChecks.NoSourceInspectionInTest`: directs callers to reshape the public API by splitting a function or exposing the tested concept intentionally, rather than exporting a private implementation detail solely for tests.
+- `ForgeCredoChecks.TimingAndPrivateStateGuard`: now also flags `:sys.get_state` call nodes at AST arities zero through two, covering direct `/1,2` calls and both piped forms while leaving string, atom, comment, and function-capture mentions untouched.
 
 ## 0.8.0 - 2026-07-14
 
@@ -24,7 +25,7 @@
 - `ForgeCredoChecks.TelemetryControlFlow`: flags `:telemetry.attach`/`attach_many` with an inline anonymous-function handler that performs control flow (`send/2`, `:erlang.send/2`, `GenServer.call`/`cast`) instead of observation-only recording. Now also detects **same-file function captures** (`&func/arity`, `&__MODULE__.func/arity`) by resolving the captured function's body within the same source file and inspecting it for control-flow calls. A raising telemetry handler is auto-detached by the runtime, so using the bus to deliver load-bearing signals fails silently; the idiomatic mechanism is `Phoenix.PubSub`. Cross-module captures and MFA-tuple handlers remain out of scope. Supports `:excluded_paths` as a shrinking migration bridge; `# credo:disable-for-next-line` is honored for intentional exceptions.
 - `ForgeCredoChecks.NoAnyOrTermTypes`: flags broad `any()` / `term()` uses in specs, callbacks, macrocallbacks, public/private/opaque type definitions, and nested type expressions so Dialyzer keeps useful shape information. Each finding carries the banned type's own column, so multiple broad types on a single spec or type line are reported as distinct, individually-actionable locations.
 - `ForgeCredoChecks.TaintedSourceInspection`: flags `=~`, `String.contains?`, `Regex.*`, and `Code.eval_string` when they inspect text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source paths, while leaving terminal artifact reads quiet. Supports `:excluded_paths` for shrinking migration bridges.
-- `ForgeCredoChecks.TimingAndPrivateStateGuard`: flags actual `Process.sleep/1` and `:sys.replace_state/2` call nodes while ignoring string, atom, and capture mentions. Supports `:excluded_paths` for shrinking migration bridges.
+- `ForgeCredoChecks.TimingAndPrivateStateGuard`: flags actual `Process.sleep/1`, `:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes while ignoring string, atom, comment, and capture mentions. Supports `:excluded_paths` for shrinking migration bridges.
 
 ## 0.7.0 - 2026-07-03
 

@@ -42,16 +42,49 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuardTest do
     assert issue.message =~ "contracts/template_variables_contract_test.exs"
   end
 
-  test "no issue: string and atom literals are not call nodes" do
+  test "issue: :sys.get_state call nodes at direct and piped AST arities" do
+    issues =
+      """
+      defmodule PrivateStateReadTest do
+        def direct(pid) do
+          :sys.get_state(pid)
+          :sys.get_state(pid, 5_000)
+        end
+
+        def piped(pid, state) do
+          pid |> :sys.get_state(5_000)
+          state |> :sys.get_state()
+        end
+      end
+      """
+      |> to_source_file("test/anubis/private_state_read_test.exs")
+      |> run_check(TimingAndPrivateStateGuard)
+
+    assert Enum.map(issues, &{&1.trigger, &1.line_no}) == [
+             {":sys.get_state", 9},
+             {":sys.get_state", 8},
+             {":sys.get_state", 4},
+             {":sys.get_state", 3}
+           ]
+
+    assert Enum.all?(issues, &(&1.message =~ "`:sys.get_state`"))
+    assert Enum.all?(issues, &(&1.message =~ "contracts/template_variables_contract_test.exs"))
+  end
+
+  test "no issue: string, atom, and comment mentions are not call nodes" do
     """
     defmodule LiteralMentionTest do
       @sleep_text "Process.sleep(10)"
       @replace_text ":sys.replace_state(pid, fun)"
+      @get_text ":sys.get_state(pid)"
       @sleep_atom :"Process.sleep"
       @replace_atom :"sys.replace_state"
+      @get_atom :"sys.get_state"
 
       def mentions do
-        {@sleep_text, @replace_text, @sleep_atom, @replace_atom, :sys, :replace_state}
+        # :sys.get_state(pid, 5_000)
+        {@sleep_text, @replace_text, @get_text, @sleep_atom, @replace_atom, @get_atom, :sys,
+         :replace_state, :get_state}
       end
     end
     """
@@ -77,7 +110,7 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuardTest do
     """
     defmodule CaptureMentionTest do
       def callbacks do
-        {&Process.sleep/1, &:sys.replace_state/2}
+        {&Process.sleep/1, &:sys.replace_state/2, &:sys.get_state/1}
       end
     end
     """
