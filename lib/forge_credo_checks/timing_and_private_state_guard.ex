@@ -1,41 +1,72 @@
 defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
-  @moduledoc """
-  Flags timing sleeps and private GenServer state inspection or mutation in
-  tests and checks.
-  """
-
   use Credo.Check,
     base_priority: :high,
     category: :warning,
     param_defaults: [excluded_paths: []],
     explanations: [
       check: """
-      Timing sleeps and private process-state access hide the real contract.
+      Wait on a signal, not a clock. Assert through the public API, not through
+      a process's private state.
 
       ## Why
 
-      `Process.sleep/1` makes tests depend on scheduler timing instead of a
-      deterministic signal. `:sys.replace_state/2` reaches into a process and
-      mutates implementation details rather than exercising the public API.
-      `:sys.get_state/1,2` exposes the same private implementation details to
-      assertions and does not synchronize independent senders, timers, or
-      asynchronous task replies.
+      `Process.sleep/1` makes the test depend on scheduler timing. It is either
+      too short (flaky on a loaded CI box) or too long (everyone pays the wall
+      clock), and it never actually proves the awaited work finished — it only
+      proves time passed.
 
-      Use behavioural contract coverage instead. The reference pattern for the
-      Forge/Anubis migration lives in `contracts/template_variables_contract_test.exs`.
+      `:sys.get_state/1,2` reads a process's internal state, which is an
+      implementation detail no caller is entitled to. It also does not
+      synchronize anything: an independent sender, a timer, or an async task
+      reply can still be in flight when it returns, so the read races the very
+      work it is meant to observe. `:sys.replace_state/2` is worse — it fakes a
+      state the real code paths can never produce, so the test passes on a
+      state that cannot occur.
+
+      ## Bad
+
+          Process.sleep(200)
+          assert :sys.get_state(pid).status == :ready
+
+          :sys.replace_state(pid, fn state -> %{state | status: :ready} end)
+
+      ## Good
+
+          # Wait on a message the process actually sends.
+          assert_receive {:worker_ready, ^pid}, 1_000
+
+          # Wait on termination with a monitor.
+          ref = Process.monitor(pid)
+          assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 1_000
+
+          # Or read state through a deliberately public, documented function
+          # that is part of the module's real API.
+          assert {:ok, :ready} = Worker.status(pid)
+
+          # Reach the state under test by driving the public API that produces
+          # it, rather than writing the state in directly.
+          assert :ok = Worker.mark_ready(pid)
+
+      Adding a test-only clause to production code — a
+      `handle_call(:__test_state__, _, state)` that returns the whole state —
+      is not an acceptable replacement. That is the same private-state read
+      behind a new door, and it puts test scaffolding in the release. Expose a
+      real, documented accessor for a value callers legitimately need, or
+      assert on a message instead.
 
       ## What is flagged
 
-      This check flags actual remote call nodes for `Process.sleep/1` and
-      `:sys.replace_state/2`, plus `:sys.get_state/1,2` and its piped AST forms
-      at arities zero and one. String literals, atom literals, comments, and
-      function captures that merely mention those names are not flagged.
+      Call nodes for `Process.sleep/1`, `:sys.get_state/1,2`, and
+      `:sys.replace_state/2`, including piped forms. Mentions that are not
+      calls — strings, atoms, comments, and function captures like
+      `&:sys.get_state/1` — are left alone.
 
       ## Configuration
 
       `excluded_paths` is a list of patterns (regexes or substrings) matched
       against each file's path; a matching file is skipped. Use it only as a
-      shrinking migration bridge while moving callers to contract tests:
+      shrinking migration bridge while moving callers onto signals and public
+      APIs:
 
           {ForgeCredoChecks.TimingAndPrivateStateGuard,
            excluded_paths: [~r"^test/legacy_timing/"]}
@@ -44,8 +75,6 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
         excluded_paths: "Paths skipped entirely (regexes or substrings)."
       ]
     ]
-
-  @contract_path "contracts/template_variables_contract_test.exs"
 
   @doc false
   def run(source_file, params \\ []) do
@@ -106,15 +135,31 @@ defmodule ForgeCredoChecks.TimingAndPrivateStateGuard do
 
   defp issue_for(issue_meta, trigger, meta) do
     format_issue(issue_meta,
-      message:
-        "`#{trigger}` bypasses the public contract. `Process.sleep/1`, " <>
-          "`:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes are " <>
-          "prohibited. Replace timing/private-state access with behavioural " <>
-          "coverage in `#{@contract_path}`; string, atom, comment, and capture " <>
-          "mentions are allowed, but call nodes are not. Use " <>
-          "`:excluded_paths` only as a shrinking migration bridge.",
+      message: message_for(trigger),
       trigger: trigger,
       line_no: Keyword.get(meta, :line)
     )
+  end
+
+  defp message_for("Process.sleep" = trigger), do: sleep_message(trigger)
+  defp message_for(trigger), do: private_state_message(trigger)
+
+  defp sleep_message(trigger) do
+    "`#{trigger}` makes this depend on scheduler timing rather than on the work finishing: " <>
+      "it proves time passed, not that anything completed. Wait on a real signal instead — " <>
+      "`assert_receive {:done, ...}` on a message the code actually sends, or " <>
+      "`ref = Process.monitor(pid)` plus `assert_receive {:DOWN, ^ref, :process, _, _}` for " <>
+      "termination. Use `:excluded_paths` only as a shrinking migration bridge."
+  end
+
+  defp private_state_message(trigger) do
+    "`#{trigger}` reaches into a process's private state, which is not part of any contract " <>
+      "and does not synchronize senders, timers, or async replies still in flight. Assert the " <>
+      "observable outcome instead — `assert_receive` on a message the process really sends, " <>
+      "`Process.monitor` plus `assert_receive {:DOWN, ...}` for termination, or a deliberately " <>
+      "public, documented accessor on the module. Adding a test-only " <>
+      "`handle_call(:__test_state__, _, state)` clause to production code is not an acceptable " <>
+      "replacement: it is the same private read behind a new door. Use `:excluded_paths` only " <>
+      "as a shrinking migration bridge."
   end
 end
