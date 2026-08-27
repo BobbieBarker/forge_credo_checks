@@ -37,22 +37,68 @@ defmodule ForgeCredoChecks.UnsupervisedSpawnTest do
     |> assert_issues()
   end
 
+  test "issue: Task.start/1 is a raw spawn wearing the supervised abstraction's name" do
+    """
+    defmodule Sample do
+      def a, do: Task.start(fn -> work() end)
+    end
+    """
+    |> to_source_file()
+    |> run_check(UnsupervisedSpawn)
+    |> assert_issue()
+  end
+
+  test "issue: Task.start/3 mfa" do
+    """
+    defmodule Sample do
+      def a(state), do: Task.start(MyMod, :loop, [state])
+    end
+    """
+    |> to_source_file()
+    |> run_check(UnsupervisedSpawn)
+    |> assert_issue()
+  end
+
+  test "issue: spawn_opt as a local call" do
+    """
+    defmodule Sample do
+      def go, do: spawn_opt(fn -> work() end, min_heap_size: 100)
+    end
+    """
+    |> to_source_file()
+    |> run_check(UnsupervisedSpawn)
+    |> assert_issue()
+  end
+
+  test "issue: :erlang.spawn_opt" do
+    """
+    defmodule Sample do
+      def go, do: :erlang.spawn_opt(fn -> work() end, [{:max_heap_size, 100}])
+    end
+    """
+    |> to_source_file()
+    |> run_check(UnsupervisedSpawn)
+    |> assert_issue()
+  end
+
+  test "issue: Process.spawn_link, Process.spawn_monitor and Process.spawn_opt" do
+    """
+    defmodule Sample do
+      def a, do: Process.spawn_link(fn -> work() end, [])
+      def b, do: Process.spawn_monitor(fn -> work() end, [])
+      def c, do: Process.spawn_opt(fn -> work() end, [])
+    end
+    """
+    |> to_source_file()
+    |> run_check(UnsupervisedSpawn)
+    |> assert_issues()
+  end
+
   test "no issue: Task.Supervisor and DynamicSupervisor are supervised" do
     """
     defmodule Sample do
       def a, do: Task.Supervisor.start_child(MyApp.Sup, fn -> work() end)
       def b, do: DynamicSupervisor.start_child(MyApp.Sup, {Worker, arg})
-    end
-    """
-    |> to_source_file()
-    |> run_check(UnsupervisedSpawn)
-    |> refute_issues()
-  end
-
-  test "no issue: Task.start is not flagged by this check" do
-    """
-    defmodule Sample do
-      def a, do: Task.start(fn -> work() end)
     end
     """
     |> to_source_file()

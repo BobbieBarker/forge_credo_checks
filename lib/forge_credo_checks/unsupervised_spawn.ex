@@ -9,11 +9,16 @@ defmodule ForgeCredoChecks.UnsupervisedSpawn do
 
       ## Why
 
-      `spawn/1,3`, `spawn_link/1,3`, `spawn_monitor/1,3`, and `Process.spawn`
-      start a process with no supervisor: nothing restarts it after a crash,
-      its start and shutdown ordering relative to the rest of the tree is
-      undefined, and it is invisible to supervision-tree introspection. A
-      crash becomes permanent absence rather than a restart.
+      `spawn/1,3`, `spawn_link/1,3`, `spawn_monitor/1,3`, `spawn_opt`, their
+      `Process.` and `:erlang.` spellings, and `Task.start/1,3` all start a
+      process with no supervisor: nothing restarts it after a crash, its start
+      and shutdown ordering relative to the rest of the tree is undefined, and
+      it is invisible to supervision-tree introspection. A crash becomes
+      permanent absence rather than a restart.
+
+      `Task.start` is included because it is the one Task entry point that
+      neither links nor supervises. It reads as part of the supervised
+      abstraction and is not.
 
       Start fixed processes as supervisor children and runtime-created ones
       under a `DynamicSupervisor`. For fire-and-forget work use
@@ -24,6 +29,8 @@ defmodule ForgeCredoChecks.UnsupervisedSpawn do
 
           spawn(fn -> do_work() end)
           spawn_link(MyMod, :loop, [state])
+          spawn_opt(fn -> do_work() end, min_heap_size: 100)
+          Task.start(fn -> do_work() end)
 
       ## Good
 
@@ -42,7 +49,7 @@ defmodule ForgeCredoChecks.UnsupervisedSpawn do
       """
     ]
 
-  @raw_spawns [:spawn, :spawn_link, :spawn_monitor]
+  @raw_spawns [:spawn, :spawn_link, :spawn_monitor, :spawn_opt]
 
   @doc false
   def run(source_file, params \\ []) do
@@ -68,14 +75,26 @@ defmodule ForgeCredoChecks.UnsupervisedSpawn do
     {ast, [issue_for(issue_meta, name, meta) | issues]}
   end
 
-  # Process.spawn(...)
+  # Process.spawn / spawn_link / spawn_monitor / spawn_opt
   defp traverse(
-         {{:., _, [{:__aliases__, _, [:Process]}, :spawn]}, meta, args} = ast,
+         {{:., _, [{:__aliases__, _, [:Process]}, name]}, meta, args} = ast,
+         issues,
+         issue_meta
+       )
+       when name in @raw_spawns and is_list(args) do
+    {ast, [issue_for(issue_meta, "Process.#{name}", meta) | issues]}
+  end
+
+  # Task.start/1,3 runs the task outside every supervision tree. Unlike the rest
+  # of the Task API it neither links nor attaches to a supervisor, so it is a
+  # raw spawn wearing the name of the supervised abstraction.
+  defp traverse(
+         {{:., _, [{:__aliases__, _, [:Task]}, :start]}, meta, args} = ast,
          issues,
          issue_meta
        )
        when is_list(args) do
-    {ast, [issue_for(issue_meta, "Process.spawn", meta) | issues]}
+    {ast, [issue_for(issue_meta, "Task.start", meta) | issues]}
   end
 
   # :erlang.spawn / spawn_link / spawn_monitor
