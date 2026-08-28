@@ -112,7 +112,13 @@ defmodule ForgeCredoChecks.NoTelemetryAssertionsInTest do
   def run(%{filename: filename} = source_file, params \\ []) do
     if test_file?(filename) do
       issue_meta = IssueMeta.for(source_file, params)
-      Code.prewalk(source_file, &traverse(&1, &2, issue_meta, event_context(source_file, params)))
+
+      # Built once. Inside the capture it would be rebuilt for every node the
+      # prewalk visits, and `event_context/2` walks the whole file itself, which
+      # makes the check quadratic in file size.
+      context = event_context(source_file, params)
+
+      Code.prewalk(source_file, &traverse(&1, &2, issue_meta, context))
     else
       []
     end
