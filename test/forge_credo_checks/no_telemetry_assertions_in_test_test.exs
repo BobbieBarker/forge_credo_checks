@@ -171,10 +171,49 @@ defmodule ForgeCredoChecks.NoTelemetryAssertionsInTestTest do
     assert [_issue] = execute_check(telemetry_attach_source(), filename)
   end
 
+  # The check builds its event context by walking the whole file. Building that
+  # inside the prewalk's capture rebuilds it per visited node, which is quadratic
+  # in file size and is not visible in any behavioural assertion: every other test
+  # here uses a one-line source and passes either way.
+  #
+  # This is a wall-clock assertion, which is normally a poor idea. It is used here
+  # because the defect has no behavioural signature, and the margin is measured
+  # rather than guessed. On this input the quadratic form takes ~14.6s and the
+  # linear form a few tens of milliseconds; the profile is unambiguous
+  # (100/200/400/800 clauses -> 209ms/977ms/3.1s/14.6s, quadrupling per doubling).
+  # The bound sits below the quadratic time and orders of magnitude above the
+  # linear one.
+  test "scales linearly with file size rather than quadratically" do
+    source = large_test_source(800)
+
+    {elapsed_us, issues} =
+      :timer.tc(fn -> execute_check(source, "test/large_example_test.exs") end)
+
+    assert issues === []
+    assert elapsed_us < 5_000_000
+  end
+
   defp execute_check(source, filename, params \\ []) do
     source
     |> to_source_file(filename)
     |> NoTelemetryAssertionsInTest.run(params)
+  end
+
+  # Ordinary assertions with no telemetry in them, so the check finds nothing and
+  # the only thing being measured is how it traverses.
+  defp large_test_source(clauses) do
+    body =
+      Enum.map_join(1..clauses, "\n", fn i ->
+        """
+        test "case #{i}" do
+          result = compute(#{i})
+          assert result === #{i}
+          refute result === 0
+        end
+        """
+      end)
+
+    "defmodule LargeExampleTest do\n" <> body <> "\nend\n"
   end
 
   defp telemetry_attach_source do
