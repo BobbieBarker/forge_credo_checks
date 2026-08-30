@@ -93,6 +93,7 @@ Boundary checks that enforce project structure rather than a language idiom.
 | `ForgeCredoChecks.NoGlobalPubSubWildcardRefute` | `refute_receive`/`refute_received` on a globally subscribed PubSub event where every payload element is an unpinned variable (a leading underscore is irrelevant) | `:global_subscriptions` (declare your project's subscribe functions and the tags they deliver) |
 | `ForgeCredoChecks.NoDetsInfoOpenGuard` | `:dets.info/1` compared with `:undefined` as a stale guard around `:dets.open_file/2`, including through a single-assignment binding of the info result | no |
 | `ForgeCredoChecks.TaintedSourceInspection` | `=~` / `String.contains?` / `Regex.*` / `Code.eval_string` applied to text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source | `:excluded_paths` |
+| `ForgeCredoChecks.MimicCopyOutsideRegistry` | `Mimic.copy` (and a bare `copy` reached through `use`/`import Mimic`) called anywhere but the suite's single registration point, which copies a module the mocking registry never sees | `:included_paths`, `:registration_paths`, `:registry` |
 | `ForgeCredoChecks.TimingAndPrivateStateGuard` | actual `Process.sleep/1`, `:timer.sleep/1`, `:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes, including piped and `apply/3` forms; string, atom, comment, and capture mentions are not flagged | `:excluded_paths` |
 
 The two-pass `Enum` chains walk the input twice and allocate intermediate
@@ -178,6 +179,7 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.NoGlobalPubSubWildcardRefute,
          global_subscriptions: [subscribe_orders: [:order_placed, :order_cancelled]]},
         {ForgeCredoChecks.NoDetsInfoOpenGuard, []},
+        {ForgeCredoChecks.MimicCopyOutsideRegistry, []},
         {ForgeCredoChecks.TaintedSourceInspection, []},
         {ForgeCredoChecks.TimingAndPrivateStateGuard, []},
         {ForgeCredoChecks.MultilineStringConcat, []}
