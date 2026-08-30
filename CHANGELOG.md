@@ -4,6 +4,7 @@
 
 ### Added
 
+- `ForgeCredoChecks.MimicCopyOutsideRegistry`: flags `Mimic.copy` outside the suite's single registration point. A per-file copy marks the module VM-globally and registers an `ExUnit.after_suite` hook, and it copies a module the mocking registry never sees, which puts it outside the Mox/Mimic coexistence invariant. Catches a bare `copy` reached through `use Mimic` / `import Mimic`, and reads the AST so prose naming the function is not flagged.
 - `ForgeCredoChecks.NoTelemetryAssertionsInTest`: flags telemetry handler attachment and telemetry-event assertions in tests so behavioral outcomes remain the test contract. The `:telemetry_event_roots` parameter declares project event-name roots explicitly while retaining the existing six-root default.
 - `ForgeCredoChecks.NoGlobalPubSubWildcardRefute`: flags wildcard negative assertions for events delivered through global PubSub subscriptions, where unrelated async producers can invalidate the assertion.
 - `ForgeCredoChecks.NoDetsInfoOpenGuard`: flags `:dets.info/1` comparisons with `:undefined` that gate `:dets.open_file/2`, because the registry read does not register the caller as a DETS user.

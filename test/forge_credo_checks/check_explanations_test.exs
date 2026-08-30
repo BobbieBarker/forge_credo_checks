@@ -9,6 +9,7 @@ defmodule ForgeCredoChecks.CheckExplanationsTest do
   # `explanations[:check]` is rendered. These tests assert the guidance an agent
   # actually receives is present in the rendered documentation.
   @documented_checks [
+    ForgeCredoChecks.MimicCopyOutsideRegistry,
     ForgeCredoChecks.NoDetsInfoOpenGuard,
     ForgeCredoChecks.NoGlobalPubSubWildcardRefute,
     ForgeCredoChecks.NoTelemetryAssertionsInTest,
