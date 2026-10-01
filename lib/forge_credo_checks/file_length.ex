@@ -13,11 +13,10 @@ defmodule ForgeCredoChecks.FileLength do
       ## Why
 
       Coding agents commonly read a whole file before they edit it, so a file's
-      length is a cost paid on every change to it. Source code tokenizes at
-      roughly 8 to 10 tokens per line: 8.6 measured on a production Elixir
-      codebase and 10.2 on a TypeScript one, with the GLM-5.3, Kimi-K3 and o200k
-      tokenizers agreeing within 1%. An 800-line file therefore costs about 7k
-      to 8k tokens per whole-file read.
+      length is a cost paid on every change to it. Elixir source tokenizes at
+      about 8.6 tokens per line, measured on a production codebase with the
+      GLM-5.3, Kimi-K3 and o200k tokenizers, which agree within 1%. An
+      800-line file therefore costs about 7k tokens per whole-file read.
 
       The limit bounds the worst single read, and typical files sit well below
       it: in the measured Elixir codebase the median source file is 142 lines

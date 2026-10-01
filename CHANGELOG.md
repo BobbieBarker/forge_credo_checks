@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- `ForgeCredoChecks.FileLength`: the explanation of the 800-line default no longer cites a TypeScript tokenization figure. It gives the Elixir measurement alone: about 8.6 tokens per line, so an 800-line file costs about 7k tokens per whole-file read.
+
 ## 0.9.0 - 2026-10-01
 
 ### Added
