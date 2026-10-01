@@ -9,6 +9,7 @@ defmodule ForgeCredoChecks.CheckExplanationsTest do
   # `explanations[:check]` is rendered. These tests assert the guidance an agent
   # actually receives is present in the rendered documentation.
   @documented_checks [
+    ForgeCredoChecks.FileLength,
     ForgeCredoChecks.MimicCopyOutsideRegistry,
     ForgeCredoChecks.NoDetsInfoOpenGuard,
     ForgeCredoChecks.NoGlobalPubSubWildcardRefute,
@@ -46,6 +47,16 @@ defmodule ForgeCredoChecks.CheckExplanationsTest do
     assert doc =~ "Process.monitor"
     assert doc =~ "assert_receive"
     assert doc =~ "__test_state__"
+  end
+
+  test "FileLength explains its default, the exit for a cohesive file and the non-fixes" do
+    doc = rendered_moduledoc(ForgeCredoChecks.FileLength)
+
+    assert doc =~ "8k tokens per whole-file read"
+    assert doc =~ "ceiling, not a target size"
+    assert doc =~ "leave this check failing"
+    assert doc =~ "Part2"
+    assert doc =~ "Matching is exact"
   end
 
   test "no check module carries a project-specific Symphony contract path" do

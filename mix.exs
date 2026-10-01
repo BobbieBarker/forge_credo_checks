@@ -1,7 +1,7 @@
 defmodule ForgeCredoChecks.MixProject do
   use Mix.Project
 
-  @version "0.8.0"
+  @version "0.9.0"
   @source_url "https://github.com/BobbieBarker/forge_credo_checks"
 
   def project do
