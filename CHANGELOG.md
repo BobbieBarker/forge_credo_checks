@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 - 2026-10-01
 
 ### Added
 
+- `ForgeCredoChecks.FileLength`: flags a source file longer than `:max_lines` lines (default 800), counted the way an editor numbers them, with documentation, comments and blank lines included. Coding agents commonly read a whole file before editing it, so length is a direct cost on every change: at roughly 8 to 10 tokens per line, an 800-line file costs about 7k to 8k tokens per read. The limit is a ceiling, not a target size. The issue is reported on line 1, as Credo does for whole-file issues, and its message steers toward extracting a cohesive responsibility behind its own interface, not toward splitting by line range, moving code into `Helpers` or numbered modules, trimming documentation, allowlisting the file or disabling the check. `:allowlist` takes the exact paths of existing oversized files, relative to the directory `mix credo` runs in (no basename, directory or wildcard matching), and exempts them from this check only. An allowlisted file that is back within the limit is reported so its entry is removed in the same change, which keeps an exemption from outliving the split it was waiting for. Test files (`*_test.exs` and anything under `test/`) are not checked. A `:max_lines` that is not a positive integer, or an `:allowlist` entry that is not a path string, raises instead of silently disabling the check.
 - `ForgeCredoChecks.MimicCopyOutsideRegistry`: flags `Mimic.copy` outside the suite's single registration point. A per-file copy marks the module VM-globally and registers an `ExUnit.after_suite` hook, and it copies a module the mocking registry never sees, which puts it outside the Mox/Mimic coexistence invariant. Catches a bare `copy` reached through `use Mimic` / `import Mimic`, and reads the AST so prose naming the function is not flagged.
 - `ForgeCredoChecks.NoTelemetryAssertionsInTest`: flags telemetry handler attachment and telemetry-event assertions in tests so behavioral outcomes remain the test contract. The `:telemetry_event_roots` parameter declares project event-name roots explicitly while retaining the existing six-root default.
 - `ForgeCredoChecks.NoGlobalPubSubWildcardRefute`: flags wildcard negative assertions for events delivered through global PubSub subscriptions, where unrelated async producers can invalidate the assertion.

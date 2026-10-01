@@ -86,6 +86,7 @@ Boundary checks that enforce project structure rather than a language idiom.
 
 | Rule | Pattern flagged | Configurable |
 |---|---|---|
+| `ForgeCredoChecks.FileLength` | source files longer than `:max_lines` lines, counting documentation, comments and blank lines (test files are not checked), and allowlisted files that are back within the limit so their entry gets removed | `:max_lines` (default `800`), `:allowlist` (exact paths relative to where `mix credo` runs, default `[]`) |
 | `ForgeCredoChecks.OneModulePerFile` | every literal `defmodule` after the first in a source file, including nested modules; quoted AST is ignored | `:excluded_paths` (defaults to test files) |
 | `ForgeCredoChecks.PortProducerBoundary` | external-model producers (subprocess/HTTP dispatch) defined outside a declared boundary module | boundary allow-lists |
 | `ForgeCredoChecks.NoSourceInspectionInTest` | tests that read or AST-parse `lib/*.ex` source (`File.read!` / `Code.string_to_quoted`, literal or carried as data) instead of exercising the real function | `:included_paths` |
@@ -174,6 +175,7 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.UnsupervisedSpawn, []},
         {ForgeCredoChecks.NamespaceTrespassing, []},
         {ForgeCredoChecks.OneModulePerFile, []},
+        {ForgeCredoChecks.FileLength, []},
         {ForgeCredoChecks.NoTelemetryAssertionsInTest,
          telemetry_event_roots: [:my_app, :my_library]},
         {ForgeCredoChecks.NoGlobalPubSubWildcardRefute,
