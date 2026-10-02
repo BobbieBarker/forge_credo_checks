@@ -52,7 +52,7 @@ defmodule ForgeCredoChecks.CheckExplanationsTest do
   test "FileLength explains its default, the exit for a cohesive file and the non-fixes" do
     doc = rendered_moduledoc(ForgeCredoChecks.FileLength)
 
-    assert doc =~ "8k tokens per whole-file read"
+    assert doc =~ "7k tokens per whole-file read"
     assert doc =~ "ceiling, not a target size"
     assert doc =~ "leave this check failing"
     assert doc =~ "Part2"
