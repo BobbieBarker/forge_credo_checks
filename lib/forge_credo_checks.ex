@@ -35,6 +35,7 @@ defmodule ForgeCredoChecks do
     * `ForgeCredoChecks.NoInlineRegex`: inline `~r`/`~R` regex sigils inside function bodies
     * `ForgeCredoChecks.NoAnyOrTermTypes`: `any()` / `term()` in specs, callbacks, and type definitions
     * `ForgeCredoChecks.MultilineStringConcat`: multi-line string-literal `<>` concatenation (use a heredoc)
+    * `ForgeCredoChecks.ShortModuleName`: module name segments and `alias ..., as:` names shorter than 3 characters, outside an allowlist of acronyms
 
   ## Architecture and test discipline
 

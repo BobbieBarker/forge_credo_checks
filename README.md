@@ -60,6 +60,7 @@ with the *complementary* one, or project-specific data-shape smells like
 | `ForgeCredoChecks.NoKernelOpInPipeline` | `pipeline \|> Kernel.<op>(arg)` for comparison/boolean operators (`==`/`!=`/`<`/`>`/`<=`/`>=`/`===`/`!==`/`and`/`or`) |
 | `ForgeCredoChecks.NoInlineRegex` | inline `~r`/`~R` regex sigils inside function bodies; define regexes in module attributes instead |
 | `ForgeCredoChecks.MultilineStringConcat` | multi-line string-literal `<>` concatenation (`"a" <> "b" <> "c"` across lines); use a heredoc instead |
+| `ForgeCredoChecks.ShortModuleName` | a `defmodule`/`defprotocol` name segment or an `alias ..., as:` name shorter than `:min_length` (default `3`), such as `MyApp.Billing.XY`. `:allowlist` takes exact segments or whole-segment regexes and replaces the default `["DB", "ID", "IO", "IP", "OS", "UI", ~r/V\d+/]`. `Mix.Tasks.*` modules and test files (`:excluded_paths`) are not checked. |
 
 ### Typespec precision
 
@@ -168,6 +169,7 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.NoCaseTrueFalse, []},
         {ForgeCredoChecks.NoKernelOpInPipeline, []},
         {ForgeCredoChecks.NoInlineRegex, []},
+        {ForgeCredoChecks.ShortModuleName, []},
         {ForgeCredoChecks.NoAnyOrTermTypes, []},
         {ForgeCredoChecks.MapGetWithOr, []},
         {ForgeCredoChecks.ChainedMapGet, []},

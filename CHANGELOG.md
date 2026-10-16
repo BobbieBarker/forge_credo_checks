@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `ForgeCredoChecks.ShortModuleName`: flags each segment of a `defmodule` or `defprotocol` name, and each `alias ..., as:` name, that is shorter than `:min_length` characters (default 3), such as the `XY` in `MyApp.Billing.XY`. A module name is read in aliases, call sites, stack traces and docs, far from where it was chosen, so an abbreviation leaves every reader to work out what it stands for. The defaults were checked against compiled module names from Elixir 1.20.1, Credo 1.7.18, ExDoc 0.40.1, Dialyxir 1.4.7 and their dependencies: of 918 module names, only `Module.Types.Of` would be flagged. `:allowlist` takes exact, case-sensitive segments or regexes that must match the whole segment, so `~r/X/` does not pass `XY`. It replaces the default `["DB", "ID", "IO", "IP", "OS", "UI", ~r/V\d+/]`, which covers common acronyms and API version namespaces. A plain `alias` or `defimpl ..., for:` only refers to a module and is not checked. `Mix.Tasks.*` modules are not checked either, because the task name fixes their segments (`mix db.reset` is `Mix.Tasks.Db.Reset`). Test files are skipped by default (`:excluded_paths`). The message tells agents to spell the name out, and says that padding it to the minimum or allowlisting it themselves is not a fix. A `:min_length` that is not a positive integer, or an `:allowlist` entry that is not a single segment or a regex, raises instead of silently disabling the check. Length is a proxy for abbreviation: a 3-letter abbreviation such as `Rgx` passes.
+
 ### Changed
 
 - `ForgeCredoChecks.FileLength`: the explanation of the 800-line default no longer cites a TypeScript tokenization figure. It gives the Elixir measurement alone: about 8.6 tokens per line, so an 800-line file costs about 7k tokens per whole-file read.

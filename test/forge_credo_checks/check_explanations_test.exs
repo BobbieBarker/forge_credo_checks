@@ -14,6 +14,7 @@ defmodule ForgeCredoChecks.CheckExplanationsTest do
     ForgeCredoChecks.NoDetsInfoOpenGuard,
     ForgeCredoChecks.NoGlobalPubSubWildcardRefute,
     ForgeCredoChecks.NoTelemetryAssertionsInTest,
+    ForgeCredoChecks.ShortModuleName,
     ForgeCredoChecks.TimingAndPrivateStateGuard
   ]
 
@@ -57,6 +58,15 @@ defmodule ForgeCredoChecks.CheckExplanationsTest do
     assert doc =~ "leave this check failing"
     assert doc =~ "Part2"
     assert doc =~ "Matching is exact"
+  end
+
+  test "ShortModuleName explains the non-fixes, the Mix task exemption and allowlist matching" do
+    doc = rendered_moduledoc(ForgeCredoChecks.ShortModuleName)
+
+    assert doc =~ "## Not fixes"
+    assert doc =~ "Mix.Tasks.Db.Reset"
+    assert doc =~ "must match the whole segment"
+    assert doc =~ "replaces the default"
   end
 
   test "no check module carries a project-specific Symphony contract path" do
