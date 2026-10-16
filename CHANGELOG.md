@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.0 - 2026-10-16
+
 ### Added
 
 - `ForgeCredoChecks.NoTicketReferences`: flags configured ticket identifiers in
