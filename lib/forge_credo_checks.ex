@@ -36,6 +36,7 @@ defmodule ForgeCredoChecks do
     * `ForgeCredoChecks.NoAnyOrTermTypes`: `any()` / `term()` in specs, callbacks, and type definitions
     * `ForgeCredoChecks.MultilineStringConcat`: multi-line string-literal `<>` concatenation (use a heredoc)
     * `ForgeCredoChecks.ShortModuleName`: module name segments and `alias ..., as:` names shorter than 3 characters, outside an allowlist of acronyms
+    * `ForgeCredoChecks.NoTicketReferences`: configured ticket identifiers in comments and documentation; requires `:ticket_prefixes` and directs ticket history to commits and branch names
 
   ## Architecture and test discipline
 
