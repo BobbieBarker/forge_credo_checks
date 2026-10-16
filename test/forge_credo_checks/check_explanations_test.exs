@@ -14,6 +14,7 @@ defmodule ForgeCredoChecks.CheckExplanationsTest do
     ForgeCredoChecks.NoDetsInfoOpenGuard,
     ForgeCredoChecks.NoGlobalPubSubWildcardRefute,
     ForgeCredoChecks.NoTelemetryAssertionsInTest,
+    ForgeCredoChecks.NoTicketReferences,
     ForgeCredoChecks.ShortModuleName,
     ForgeCredoChecks.TimingAndPrivateStateGuard
   ]
@@ -67,6 +68,19 @@ defmodule ForgeCredoChecks.CheckExplanationsTest do
     assert doc =~ "Mix.Tasks.Db.Reset"
     assert doc =~ "must match the whole segment"
     assert doc =~ "replaces the default"
+  end
+
+  test "NoTicketReferences explains prefix configuration and ticket history in commits" do
+    doc = rendered_moduledoc(ForgeCredoChecks.NoTicketReferences)
+
+    assert doc =~ "ticket_prefixes"
+    assert doc =~ "commit"
+    assert doc =~ "git blame"
+    assert doc =~ "## What comments and docs are for"
+    assert doc =~ "someone who has not read the ticket or this conversation"
+    assert doc =~ "public contract"
+    assert doc =~ "Progress updates"
+    assert doc =~ "This check detects configured ticket identifiers"
   end
 
   test "no check module carries a project-specific Symphony contract path" do

@@ -1,7 +1,7 @@
 # ForgeCredoChecks
 
-Custom [Credo](https://github.com/rrrene/credo) checks targeting `Enum`
-anti-patterns LLMs (and some humans) commonly produce in Elixir code.
+Custom [Credo](https://github.com/rrrene/credo) checks targeting anti-patterns
+LLMs (and some humans) commonly produce in Elixir code.
 
 Stock Credo ships rules for `filter |> filter`, `reject |> reject`,
 `map |> join`, etc. (same operation chained, or map terminating in a
@@ -61,6 +61,44 @@ with the *complementary* one, or project-specific data-shape smells like
 | `ForgeCredoChecks.NoInlineRegex` | inline `~r`/`~R` regex sigils inside function bodies; define regexes in module attributes instead |
 | `ForgeCredoChecks.MultilineStringConcat` | multi-line string-literal `<>` concatenation (`"a" <> "b" <> "c"` across lines); use a heredoc instead |
 | `ForgeCredoChecks.ShortModuleName` | a `defmodule`/`defprotocol` name segment or an `alias ..., as:` name shorter than `:min_length` (default `3`), such as `MyApp.Billing.XY`. `:allowlist` takes exact segments or whole-segment regexes and replaces the default `["DB", "ID", "IO", "IP", "OS", "UI", ~r/V\d+/]`. `Mix.Tasks.*` modules and test files (`:excluded_paths`) are not checked. |
+
+### Ticket references in comments and documentation
+
+`ForgeCredoChecks.NoTicketReferences` flags ticket identifiers from your
+configured projects in `#` comments and literal prose in `@doc`, `@moduledoc`,
+and `@typedoc`, including in test files.
+
+Configure the prefixes your project wants to prohibit:
+
+```elixir
+{ForgeCredoChecks.NoTicketReferences, ticket_prefixes: ["FGE", "PAY"]}
+```
+
+`:ticket_prefixes` is required and has no default. It must be a nonempty list
+of strings, each starting with an ASCII letter and containing only ASCII
+letters, digits, or underscores. Supply the prefix without a trailing hyphen.
+Missing or invalid configuration raises an error.
+
+For those prefixes, the rule flags `FGE-123`, `pay-42`, and ticket URLs such as
+`https://tracker.example/issue/FGE-123-preserve-retry-deadline`. Matching is
+case-insensitive and requires a complete identifier, so `OTHERFGE-123` and
+`FGE-123suffix` are left alone. Unconfigured prefixes and bare numbers are not
+flagged.
+
+Comments should explain non-obvious reasons, invariants, constraints, and
+trade-offs. Documentation should describe purpose, current behavior, the public
+contract, and correct usage. Write for future readers who have not read the ticket
+or conversation. Keep useful explanations; remove change narration, progress
+reports, and messages to the requester. This reminder appears in every warning.
+Record the ticket in a commit message such as
+`fix(FGE-123): preserve retry deadline` or a branch name retained in merge history, so
+`git blame` can lead readers to the change and its history.
+
+The check covers quoted strings, heredocs, `~s`/`~S` sigils, and literal text
+within interpolated or concatenated documentation. Ordinary runtime strings
+and documentation metadata are outside its scope. It does not expand macros,
+resolve module attributes, or evaluate file reads to discover documentation.
+Detection targets configured ticket identifiers; it does not classify all narration.
 
 ### Typespec precision
 
@@ -170,6 +208,7 @@ Then add to `.credo.exs`:
         {ForgeCredoChecks.NoKernelOpInPipeline, []},
         {ForgeCredoChecks.NoInlineRegex, []},
         {ForgeCredoChecks.ShortModuleName, []},
+        {ForgeCredoChecks.NoTicketReferences, ticket_prefixes: ["FGE", "PAY"]},
         {ForgeCredoChecks.NoAnyOrTermTypes, []},
         {ForgeCredoChecks.MapGetWithOr, []},
         {ForgeCredoChecks.ChainedMapGet, []},
