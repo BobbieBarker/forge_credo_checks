@@ -18,7 +18,7 @@ Add `forge_credo_checks` to your dependencies in `mix.exs`:
 defp deps do
   [
     {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-    {:forge_credo_checks, "~> 0.9", only: [:dev, :test], runtime: false}
+    {:forge_credo_checks, "~> 0.10", only: [:dev, :test], runtime: false}
   ]
 end
 ```
