@@ -1,52 +1,12 @@
 defmodule ForgeCredoChecks do
   @moduledoc """
-  Custom Credo checks targeting anti-patterns that LLMs commonly produce.
+  Additional Credo checks for readable, idiomatic Elixir.
 
-  Stock Credo ships checks for `filter |> filter`, `reject |> reject`,
-  `map |> join`, `map |> into`, etc. but not the cases where one operation
-  composes with the *complementary* one, nor the common map-building,
-  sort-then-pick, and map-shape normalization anti-patterns. These checks fill
-  those gaps.
+  Enable individual check modules in `.credo.exs` to match your project's
+  conventions. See [Getting started](readme.html) for installation and
+  configuration, and the [check reference](checks.html) for the full catalog.
 
-  ## Two-pass Enum chains (suggests `Enum.reduce/3`)
-
-    * `ForgeCredoChecks.FilterMap`: `Enum.filter |> Enum.map`
-    * `ForgeCredoChecks.RejectMap`: `Enum.reject |> Enum.map`
-    * `ForgeCredoChecks.MapReject`: `Enum.map |> Enum.reject`
-    * `ForgeCredoChecks.MapRejectNil`: `Enum.map |> Enum.reject(&is_nil/1)`
-
-  ## Hand-rolled map building (suggests `Map.new/2`)
-
-    * `ForgeCredoChecks.MapNewFromInto`: `Enum.into(%{}, fn ...)`
-    * `ForgeCredoChecks.MapNewFromReduce`: `Enum.reduce(_, %{}, &Map.put(acc, k, v))`
-
-  ## Wasteful list-extremum patterns
-
-    * `ForgeCredoChecks.ReverseListFirst`: `xs |> Enum.reverse() |> List.first()` becomes `List.last(xs)`
-    * `ForgeCredoChecks.SortListFirst`: `Enum.sort \\| List.first` becomes `Enum.min`/`Enum.max`/`*_by`
-
-  ## Map shape normalization
-
-    * `ForgeCredoChecks.MapGetWithOr`: `Map.get(_, _) || fallback`
-    * `ForgeCredoChecks.ChainedMapGet`: `Map.get(_, _) || Map.get(_, _)`
-
-  ## LLM tells
-
-    * `ForgeCredoChecks.NoInlineRegex`: inline `~r`/`~R` regex sigils inside function bodies
-    * `ForgeCredoChecks.NoAnyOrTermTypes`: `any()` / `term()` in specs, callbacks, and type definitions
-    * `ForgeCredoChecks.MultilineStringConcat`: multi-line string-literal `<>` concatenation (use a heredoc)
-    * `ForgeCredoChecks.ShortModuleName`: module name segments and `alias ..., as:` names shorter than 3 characters, outside an allowlist of acronyms
-    * `ForgeCredoChecks.NoTicketReferences`: configured ticket identifiers in comments and documentation; requires `:ticket_prefixes` and directs ticket history to commits and branch names
-
-  ## Architecture and test discipline
-
-    * `ForgeCredoChecks.OneModulePerFile`: every `defmodule` after the first in a source file (test files excluded by default)
-    * `ForgeCredoChecks.NoTelemetryAssertionsInTest`: telemetry attachment calls and telemetry-event assertions in tests
-    * `ForgeCredoChecks.NoGlobalPubSubWildcardRefute`: `refute_receive`/`refute_received` with an all-variable payload for globally subscribed PubSub events
-    * `ForgeCredoChecks.NoDetsInfoOpenGuard`: `:dets.info/1` checks used to gate `:dets.open_file/2`
-    * `ForgeCredoChecks.TaintedSourceInspection`: source-grep constructs applied to text read from non-test `.ex` / `.exs` files
-    * `ForgeCredoChecks.TimingAndPrivateStateGuard`: `Process.sleep/1`, `:timer.sleep/1`, `:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes, including piped and `apply/3` forms
-    * `ForgeCredoChecks.NoApplicationGetEnvInLib`: `Application.get_env/2,3` inside `lib/` (use `compile_env` or `fetch_env!` instead)
-    * `ForgeCredoChecks.TelemetryControlFlow`: `:telemetry.attach`/`attach_many` with an inline handler that performs control flow (`send`, `GenServer.call`/`cast`) instead of observation-only recording
+  Each check's module documentation describes the patterns it detects, explains
+  the recommended alternatives, and lists its configuration options and limits.
   """
 end

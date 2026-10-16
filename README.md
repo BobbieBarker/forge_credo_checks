@@ -1,237 +1,71 @@
 # ForgeCredoChecks
 
-Custom [Credo](https://github.com/rrrene/credo) checks targeting anti-patterns
-LLMs (and some humans) commonly produce in Elixir code.
+Additional [Credo](https://github.com/rrrene/credo) checks for readable, idiomatic
+Elixir. Covers collection operations, control flow, module design, documentation,
+and testing. Enable the checks that fit your project's conventions.
 
-Stock Credo ships rules for `filter |> filter`, `reject |> reject`,
-`map |> join`, etc. (same operation chained, or map terminating in a
-collector). It does **not** catch chains where one operation composes
-with the *complementary* one, or project-specific data-shape smells like
-`Map.get/2 || fallback`. These checks fill that gap.
-
-## Rules
-
-### Two-pass Enum chains: use a comprehension
-
-| Rule | Pattern flagged |
-|---|---|
-| `ForgeCredoChecks.FilterMap` | `Enum.filter \|> Enum.map` |
-| `ForgeCredoChecks.RejectMap` | `Enum.reject \|> Enum.map` |
-| `ForgeCredoChecks.MapReject` | `Enum.map \|> Enum.reject` |
-| `ForgeCredoChecks.MapRejectNil` | `Enum.map \|> Enum.reject(&is_nil/1)` |
-
-### Hand-rolled map building: use `Map.new/2`
-
-| Rule | Pattern flagged |
-|---|---|
-| `ForgeCredoChecks.MapNewFromInto` | `Enum.into(%{}, fn ...)` |
-| `ForgeCredoChecks.MapNewFromReduce` | `Enum.reduce(_, %{}, &Map.put(acc, k, v))` |
-
-### Wasteful list-extremum patterns
-
-| Rule | Pattern flagged | Replacement |
-|---|---|---|
-| `ForgeCredoChecks.ReverseListFirst` | `xs \|> Enum.reverse() \|> List.first()` | `List.last(xs)` |
-| `ForgeCredoChecks.SortListFirst` | `Enum.sort \\| List.first` | `Enum.min`/`Enum.max`/`*_by` |
-
-### `with`-macro conventions
-
-| Rule | Pattern flagged | Configurable |
-|---|---|---|
-| `ForgeCredoChecks.WithBareBinding` | `=` clauses inside a `with` chain (must be `<-`) | no |
-| `ForgeCredoChecks.WithElseClauses` | `with` blocks whose `else` exceeds `:max_clauses` | `:max_clauses` (default `1`) |
-| `ForgeCredoChecks.WithResultTag` | `<-` clauses with atom-tagged LHS outside the allowlist | `:allowed_atoms` (default `[:ok, :error]`) |
-
-### Map shape normalization
-
-| Rule | Pattern flagged |
-|---|---|
-| `ForgeCredoChecks.MapGetWithOr` | `Map.get(_, _) || fallback` |
-| `ForgeCredoChecks.ChainedMapGet` | `Map.get(_, _) || Map.get(_, _)` |
-
-### LLM tells (function shape and idiomatic Elixir)
-
-| Rule | Pattern flagged |
-|---|---|
-| `ForgeCredoChecks.InconsistentParamNames` | multi-clause function (within the same module) whose same positional argument has different base names across clauses. Clauses in separate `defimpl`/`defmodule` blocks are never cross-compared. |
-| `ForgeCredoChecks.NoKernelShadowing` | variable binding (`=`, `fn`, `def`/`defp` param) named `max`/`min`/`length`/`elem`/`hd`/`tl`/`abs`/`round`/`trunc`/`div`/`rem`/`tuple_size`/`map_size`/`byte_size`/`bit_size` |
-| `ForgeCredoChecks.NoUnnecessaryCatchAllRaise` | `def`/`defp` catch-all clause (every arg wildcard, body is `raise(...)`) when at least one sibling clause exists for the same `{name, arity}` in the same module. Single-clause raise functions (stubs, arity redirects) are not flagged. |
-| `ForgeCredoChecks.NoCaseTrueFalse` | `case <bool_expr> do true -> ...; false -> ... end` (and `true`/`_`, `false`/`_` variants) |
-| `ForgeCredoChecks.NoKernelOpInPipeline` | `pipeline \|> Kernel.<op>(arg)` for comparison/boolean operators (`==`/`!=`/`<`/`>`/`<=`/`>=`/`===`/`!==`/`and`/`or`) |
-| `ForgeCredoChecks.NoInlineRegex` | inline `~r`/`~R` regex sigils inside function bodies; define regexes in module attributes instead |
-| `ForgeCredoChecks.MultilineStringConcat` | multi-line string-literal `<>` concatenation (`"a" <> "b" <> "c"` across lines); use a heredoc instead |
-| `ForgeCredoChecks.ShortModuleName` | a `defmodule`/`defprotocol` name segment or an `alias ..., as:` name shorter than `:min_length` (default `3`), such as `MyApp.Billing.XY`. `:allowlist` takes exact segments or whole-segment regexes and replaces the default `["DB", "ID", "IO", "IP", "OS", "UI", ~r/V\d+/]`. `Mix.Tasks.*` modules and test files (`:excluded_paths`) are not checked. |
-
-### Ticket references in comments and documentation
-
-`ForgeCredoChecks.NoTicketReferences` flags ticket identifiers from your
-configured projects in `#` comments and literal prose in `@doc`, `@moduledoc`,
-and `@typedoc`, including in test files.
-
-Configure the prefixes your project wants to prohibit:
-
-```elixir
-{ForgeCredoChecks.NoTicketReferences, ticket_prefixes: ["FGE", "PAY"]}
-```
-
-`:ticket_prefixes` is required and has no default. It must be a nonempty list
-of strings, each starting with an ASCII letter and containing only ASCII
-letters, digits, or underscores. Supply the prefix without a trailing hyphen.
-Missing or invalid configuration raises an error.
-
-For those prefixes, the rule flags `FGE-123`, `pay-42`, and ticket URLs such as
-`https://tracker.example/issue/FGE-123-preserve-retry-deadline`. Matching is
-case-insensitive and requires a complete identifier, so `OTHERFGE-123` and
-`FGE-123suffix` are left alone. Unconfigured prefixes and bare numbers are not
-flagged.
-
-Comments should explain non-obvious reasons, invariants, constraints, and
-trade-offs. Documentation should describe purpose, current behavior, the public
-contract, and correct usage. Write for future readers who have not read the ticket
-or conversation. Keep useful explanations; remove change narration, progress
-reports, and messages to the requester. This reminder appears in every warning.
-Record the ticket in a commit message such as
-`fix(FGE-123): preserve retry deadline` or a branch name retained in merge history, so
-`git blame` can lead readers to the change and its history.
-
-The check covers quoted strings, heredocs, `~s`/`~S` sigils, and literal text
-within interpolated or concatenated documentation. Ordinary runtime strings
-and documentation metadata are outside its scope. It does not expand macros,
-resolve module attributes, or evaluate file reads to discover documentation.
-Detection targets configured ticket identifiers; it does not classify all narration.
-
-### Typespec precision
-
-| Rule | Pattern flagged |
-|---|---|
-| `ForgeCredoChecks.NoAnyOrTermTypes` | `any()` / `term()` in `@spec`, `@callback`, `@macrocallback`, `@type`, `@typep`, and `@opaque` declarations. Each occurrence reports its own column, so several broad types on one line are distinct findings you can act on individually. |
-
-### Official Elixir anti-patterns
-
-A few of the [official Elixir anti-patterns](https://hexdocs.pm/elixir/what-anti-patterns.html)
-that have a reliable AST signature. The rest of the catalog is either already
-covered by stock Credo (e.g. `Warning.UnsafeToAtom`, `Refactor.FunctionArity`,
-`Refactor.WithClauses`) or is too semantic to detect statically.
-
-| Rule | Pattern flagged | Configurable |
-|---|---|---|
-| `ForgeCredoChecks.LargeStruct` | `defstruct` with `:max_fields` or more fields (a map of 32+ keys drops the BEAM flat-map representation) | `:max_fields` (default `32`) |
-| `ForgeCredoChecks.UnsupervisedSpawn` | raw `spawn`/`spawn_link`/`spawn_monitor`/`Process.spawn` (start the process under a supervisor instead) | `:excluded_paths` |
-| `ForgeCredoChecks.NamespaceTrespassing` | `defmodule` whose top segment is a dependency's namespace (`Phoenix.*`, `Ecto.*`, ...) | `:namespaces` |
-
-### Architecture and test discipline
-
-Boundary checks that enforce project structure rather than a language idiom.
-
-| Rule | Pattern flagged | Configurable |
-|---|---|---|
-| `ForgeCredoChecks.FileLength` | source files longer than `:max_lines` lines, counting documentation, comments and blank lines (test files are not checked), and allowlisted files that are back within the limit so their entry gets removed | `:max_lines` (default `800`), `:allowlist` (exact paths relative to where `mix credo` runs, default `[]`) |
-| `ForgeCredoChecks.OneModulePerFile` | every literal `defmodule` after the first in a source file, including nested modules; quoted AST is ignored | `:excluded_paths` (defaults to test files) |
-| `ForgeCredoChecks.PortProducerBoundary` | external-model producers (subprocess/HTTP dispatch) defined outside a declared boundary module | boundary allow-lists |
-| `ForgeCredoChecks.NoSourceInspectionInTest` | tests that read or AST-parse `lib/*.ex` source (`File.read!` / `Code.string_to_quoted`, literal or carried as data) instead of exercising the real function | `:included_paths` |
-| `ForgeCredoChecks.NoTelemetryAssertionsInTest` | tests that attach telemetry handlers (directly or via `apply/3`) or assert on telemetry events instead of behavioral outcomes; resolves event names lifted into module attributes | `:telemetry_event_roots` (defaults to six event roots) |
-| `ForgeCredoChecks.NoGlobalPubSubWildcardRefute` | `refute_receive`/`refute_received` on a globally subscribed PubSub event where every payload element is an unpinned variable (a leading underscore is irrelevant) | `:global_subscriptions` (declare your project's subscribe functions and the tags they deliver) |
-| `ForgeCredoChecks.NoDetsInfoOpenGuard` | `:dets.info/1` compared with `:undefined` as a stale guard around `:dets.open_file/2`, including through a single-assignment binding of the info result | no |
-| `ForgeCredoChecks.TaintedSourceInspection` | `=~` / `String.contains?` / `Regex.*` / `Code.eval_string` applied to text tainted from `File.read!` / `File.stream!` of non-test `.ex` / `.exs` source | `:excluded_paths` |
-| `ForgeCredoChecks.MimicCopyOutsideRegistry` | `Mimic.copy` (and a bare `copy` reached through `use`/`import Mimic`) called anywhere but the suite's single registration point, which copies a module the mocking registry never sees | `:included_paths`, `:registration_paths`, `:registry` |
-| `ForgeCredoChecks.TimingAndPrivateStateGuard` | actual `Process.sleep/1`, `:timer.sleep/1`, `:sys.replace_state/2`, and `:sys.get_state/1,2` call nodes, including piped and `apply/3` forms; string, atom, comment, and capture mentions are not flagged | `:excluded_paths` |
-
-The two-pass `Enum` chains walk the input twice and allocate intermediate
-lists; a comprehension does both in one pass and preserves order naturally.
-The map-building forms are pure equivalences with cleaner intent. The
-sort-then-pick patterns are O(N log N) when O(N) suffices. The `with`
-checks codify the convention that every clause uses `<-`, that step
-return shapes get normalized in helpers (so non-matches fall through),
-and that result tags stay within a project's intended vocabulary.
-
-```elixir
-# Flagged by FilterMap
-things
-|> Enum.filter(&keep?/1)
-|> Enum.map(&transform/1)
-
-# Preferred replacement: comprehension (one pass, in-order, no reverse)
-for x <- things, keep?(x), do: transform(x)
-```
-
-For the `Enum`-chain checks the suggested fix order is:
-
-1. **Comprehension** (preferred). Single pass, preserves order, no
-   intermediate list, no `reverse` step.
-2. **`Enum.flat_map/2`** when the transform is naturally 0-or-more (e.g.
-   `parse(x)` returning `nil`-or-value).
-3. **`Enum.reduce/3`** only as a last resort, and only when the consumer
-   does not care about order. Do *not* tack on `|> Enum.reverse/1` to
-   restore order: that second pass is exactly the tax the comprehension
-   exists to avoid.
-
-All Enum-chain rules detect the four AST shapes Elixir parses for any
-two-call chain: direct nested call, two-step pipe, partial pipe + call,
-and longer pipe chains.
+[Hex](https://hex.pm/packages/forge_credo_checks) ·
+[Documentation](https://hexdocs.pm/forge_credo_checks/) ·
+[Changelog](CHANGELOG.md)
 
 ## Installation
 
-Add to `mix.exs`:
+Requires Elixir 1.18 or later and Credo 1.7.
+
+Add `forge_credo_checks` to your dependencies in `mix.exs`:
 
 ```elixir
-def deps do
+defp deps do
   [
-    {:forge_credo_checks, "~> 0.7", only: [:dev, :test], runtime: false}
+    {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+    {:forge_credo_checks, "~> 0.9", only: [:dev, :test], runtime: false}
   ]
 end
 ```
 
-Then add to `.credo.exs`:
+Then run `mix deps.get`.
+
+## Usage
+
+Add checks under `extra` in `.credo.exs` to keep Credo's default checks enabled.
+If you don't have a configuration file, create one with `mix credo gen.config`.
+
+For example:
 
 ```elixir
 %{
   configs: [
     %{
       name: "default",
-      checks: [
-        # ...
-        {ForgeCredoChecks.FilterMap, []},
-        {ForgeCredoChecks.RejectMap, []},
-        {ForgeCredoChecks.MapReject, []},
-        {ForgeCredoChecks.MapRejectNil, []},
-        {ForgeCredoChecks.MapNewFromInto, []},
-        {ForgeCredoChecks.MapNewFromReduce, []},
-        {ForgeCredoChecks.ReverseListFirst, []},
-        {ForgeCredoChecks.SortListFirst, []},
-        {ForgeCredoChecks.WithBareBinding, []},
-        {ForgeCredoChecks.WithElseClauses, []},
-        {ForgeCredoChecks.WithResultTag, []},
-        {ForgeCredoChecks.InconsistentParamNames, []},
-        {ForgeCredoChecks.NoKernelShadowing, []},
-        {ForgeCredoChecks.NoUnnecessaryCatchAllRaise, []},
-        {ForgeCredoChecks.NoCaseTrueFalse, []},
-        {ForgeCredoChecks.NoKernelOpInPipeline, []},
-        {ForgeCredoChecks.NoInlineRegex, []},
-        {ForgeCredoChecks.ShortModuleName, []},
-        {ForgeCredoChecks.NoTicketReferences, ticket_prefixes: ["FGE", "PAY"]},
-        {ForgeCredoChecks.NoAnyOrTermTypes, []},
-        {ForgeCredoChecks.MapGetWithOr, []},
-        {ForgeCredoChecks.ChainedMapGet, []},
-        {ForgeCredoChecks.LargeStruct, []},
-        {ForgeCredoChecks.UnsupervisedSpawn, []},
-        {ForgeCredoChecks.NamespaceTrespassing, []},
-        {ForgeCredoChecks.OneModulePerFile, []},
-        {ForgeCredoChecks.FileLength, []},
-        {ForgeCredoChecks.NoTelemetryAssertionsInTest,
-         telemetry_event_roots: [:my_app, :my_library]},
-        {ForgeCredoChecks.NoGlobalPubSubWildcardRefute,
-         global_subscriptions: [subscribe_orders: [:order_placed, :order_cancelled]]},
-        {ForgeCredoChecks.NoDetsInfoOpenGuard, []},
-        {ForgeCredoChecks.MimicCopyOutsideRegistry, []},
-        {ForgeCredoChecks.TaintedSourceInspection, []},
-        {ForgeCredoChecks.TimingAndPrivateStateGuard, []},
-        {ForgeCredoChecks.MultilineStringConcat, []}
-      ]
+      checks: %{
+        extra: [
+          {ForgeCredoChecks.FilterMap, []},
+          {ForgeCredoChecks.WithBareBinding, []},
+          {ForgeCredoChecks.NoInlineRegex, []}
+        ]
+      }
     }
   ]
 }
 ```
 
+Run the checks alongside your existing Credo rules:
+
+```sh
+mix credo --strict
+```
+
+## Available checks
+
+The [check reference](guides/checks.md) lists every check by purpose. Each check's
+module documentation includes its rationale, examples, configuration options,
+and detection limits. Some checks require project-specific configuration, such
+as ticket prefixes, namespaces, or permitted boundary paths.
+
+The repository may include unreleased checks. See the [changelog](CHANGELOG.md)
+for release status and [HexDocs](https://hexdocs.pm/forge_credo_checks/) for the
+published version.
+
 ## License
 
-MIT
+[MIT](LICENSE)
