@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.0 - 2026-11-19
+
 ### Added
 
 - `ForgeCredoChecks.NoPipelineInWith`: rejects pipelines anywhere in `with`
