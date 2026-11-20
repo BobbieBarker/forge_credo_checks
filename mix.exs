@@ -66,6 +66,7 @@ defmodule ForgeCredoChecks.MixProject do
         ],
         "Control flow and data contracts": [
           ForgeCredoChecks.WithBareBinding,
+          ForgeCredoChecks.NoPipelineInWith,
           ForgeCredoChecks.WithElseClauses,
           ForgeCredoChecks.WithResultTag,
           ForgeCredoChecks.MapGetWithOr,

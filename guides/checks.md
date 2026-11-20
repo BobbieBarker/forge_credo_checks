@@ -21,6 +21,7 @@ and detection limits in the [published documentation](https://hexdocs.pm/forge_c
 
 | Check | Detects |
 | --- | --- |
+| `ForgeCredoChecks.NoPipelineInWith` | Pipelines anywhere in `with` clause expressions, including nested arguments and wrappers; permits pipelines in `do` and `else` bodies. |
 | `ForgeCredoChecks.WithBareBinding` | Plain `=` bindings in `with` chains. |
 | `ForgeCredoChecks.WithElseClauses` | `with` expressions exceeding a configured number of `else` clauses. |
 | `ForgeCredoChecks.WithResultTag` | Atom-tagged `with` matches outside a configured vocabulary. |
