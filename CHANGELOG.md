@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- `ForgeCredoChecks.NoPipelineInWith`: rejects pipelines anywhere in `with`
+  clause expressions, including nested arguments, wrappers, and anonymous
+  functions, and recommends extracting a named helper. Pipelines in `do` and
+  `else` bodies remain allowed.
+
 ## 0.10.0 - 2026-10-16
 
 ### Added
